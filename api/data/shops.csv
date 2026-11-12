@@ -1,0 +1,13 @@
+shop_id,name,owner,category,lat,lon,plan_active,staging_order_id
+shop_01,Flower stall,Selvi,flowers,13.0401,80.2501,True,ORD-STG-SHOP-01
+shop_02,Tea stall,Kumar,tea,13.0402,80.2502,True,ORD-STG-SHOP-02
+shop_03,Pharmacy,Ravi,pharmacy,13.0403,80.2503,True,ORD-STG-SHOP-03
+shop_04,Fruit cart,Lakshmi,fruit,13.0404,80.2504,True,ORD-STG-SHOP-04
+shop_05,Tailor,Anwar,tailor,13.0405,80.2505,True,ORD-STG-SHOP-05
+shop_06,Mobile repair,Priya,mobile_repair,13.0406,80.2506,True,ORD-STG-SHOP-06
+shop_07,Grocery,Murugan,grocery,13.0407,80.2507,True,ORD-STG-SHOP-07
+shop_08,Bakery,Fatima,bakery,13.0408,80.2508,True,ORD-STG-SHOP-08
+shop_09,Footwear,Arjun,footwear,13.0409,80.2509,True,ORD-STG-SHOP-09
+shop_10,Stationery,Meena,stationery,13.041,80.251,True,ORD-STG-SHOP-10
+shop_11,Hotel (tiffin),Babu,tiffin,13.0411,80.2511,True,ORD-STG-SHOP-11
+shop_12,Saree shop,Kavya,saree,13.0412,80.2512,True,ORD-STG-SHOP-12
