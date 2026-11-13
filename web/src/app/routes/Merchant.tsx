@@ -1,26 +1,440 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ConsentButton } from "@/components/ConsentButton";
+import { CheckGlyph } from "@/components/glyphs/CheckGlyph";
+import { MicGlyph } from "@/components/glyphs/MicGlyph";
+import { OpenExternalGlyph } from "@/components/glyphs/OpenExternalGlyph";
+import { ReceiptGlyph } from "@/components/glyphs/ReceiptGlyph";
 import { PhoneFrame } from "@/components/PhoneFrame";
-import { PhoneStatusPill } from "@/components/PhoneStatusPill";
+import { PhoneStatusPill, type PhonePillState } from "@/components/PhoneStatusPill";
+import { ReceiptLine } from "@/components/ReceiptLine";
 import { ShareDisclosure } from "@/components/ShareDisclosure";
+import { StateLabel } from "@/components/StateLabel";
+import { VoicePrompt } from "@/components/VoicePrompt";
+import {
+  getHealth,
+  getStreet,
+  type HealthResponse,
+  type ShopView,
+  submitConsent,
+  submitVoice,
+} from "@/lib/api";
+import { formatRupeesFromPaise } from "@/lib/format";
+import { connectEventStream } from "@/lib/stream";
+
+const SELVI_SHOP_ID = "shop_01";
+
+function buildSilentWavBlob(): Blob {
+  const sampleRate = 16000;
+  const numSamples = sampleRate;
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+
+  function writeAscii(offset: number, str: string) {
+    for (let i = 0; i < str.length; i += 1) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  }
+
+  writeAscii(0, "RIFF");
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeAscii(8, "WAVE");
+  writeAscii(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeAscii(36, "data");
+  view.setUint32(40, numSamples * 2, true);
+
+  return new Blob([buffer], { type: "audio/wav" });
+}
 
 export function Merchant() {
+  const [selvi, setSelvi] = useState<ShopView | null>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+
+  const refreshSelvi = useCallback(async () => {
+    try {
+      const [streetRes, healthRes] = await Promise.all([
+        getStreet("panagal_park_road", "2026-10-21"),
+        getHealth(),
+      ]);
+      const found =
+        streetRes.shops.find((s) => s.shop_id === SELVI_SHOP_ID) ?? null;
+      setSelvi(found);
+      setHealth(healthRes);
+      if (found?.ask?.status === "declined") {
+        setDeclined(true);
+      } else if (found?.ask?.status === "pending") {
+        setDeclined(false);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unable to load merchant view";
+      setErrorMsg(msg);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSelvi();
+  }, [refreshSelvi]);
+
+  useEffect(() => {
+    const disconnect = connectEventStream({
+      onDetectorDecision: (evt) => {
+        if (evt.shop_id === SELVI_SHOP_ID) {
+          void refreshSelvi();
+        }
+      },
+      onAskSent: (evt) => {
+        if (evt.shop_id === SELVI_SHOP_ID) {
+          void refreshSelvi();
+        }
+      },
+      onAskAnswered: () => {
+        void refreshSelvi();
+      },
+      onClaimFiled: (evt) => {
+        if (evt.shop_id === SELVI_SHOP_ID) {
+          void refreshSelvi();
+        }
+      },
+      onBatchReady: () => {
+        void refreshSelvi();
+      },
+      onRefundStatus: () => {
+        void refreshSelvi();
+      },
+    });
+    return () => {
+      disconnect();
+    };
+  }, [refreshSelvi]);
+
+  const handleConsent = async (consent: boolean) => {
+    const askId = selvi?.ask?.id;
+    if (!askId) return;
+    setSubmitting(true);
+    setErrorMsg(null);
+    try {
+      await submitConsent(askId, consent);
+      if (!consent) {
+        setDeclined(true);
+      }
+      await refreshSelvi();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to submit consent";
+      setErrorMsg(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVoiceToggle = async () => {
+    const askId = selvi?.ask?.id;
+    if (!askId) return;
+
+    if (recording && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setRecording(false);
+      return;
+    }
+
+    setErrorMsg(null);
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function" &&
+      typeof window.MediaRecorder !== "undefined"
+    ) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        chunksRef.current = [];
+        const recorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (evt) => {
+          if (evt.data.size > 0) {
+            chunksRef.current.push(evt.data);
+          }
+        };
+
+        recorder.onstop = () => {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
+          const mimeType = recorder.mimeType || "audio/webm";
+          const ext = mimeType.includes("ogg")
+            ? "reply.ogg"
+            : mimeType.includes("mp4")
+              ? "reply.m4a"
+              : "reply.webm";
+          const blob =
+            chunksRef.current.length > 0
+              ? new Blob(chunksRef.current, { type: mimeType })
+              : buildSilentWavBlob();
+          setSubmitting(true);
+          void submitVoice(askId, blob, ext)
+            .then(() => refreshSelvi())
+            .catch((err: unknown) => {
+              const msg =
+                err instanceof Error ? err.message : "Voice upload failed";
+              setErrorMsg(msg);
+            })
+            .finally(() => setSubmitting(false));
+        };
+
+        recorder.start();
+        setRecording(true);
+        return;
+      } catch {
+        // Fallback when microphone permission is unavailable in headless/demo browser
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      const wavBlob = buildSilentWavBlob();
+      await submitVoice(askId, wavBlob, "reply.wav");
+      await refreshSelvi();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Voice upload failed";
+      setErrorMsg(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const hasClaim = Boolean(selvi?.claim);
+  const hasRefund = Boolean(selvi?.claim?.refund);
+  const hasPendingAsk =
+    !hasClaim &&
+    !declined &&
+    Boolean(selvi?.ask && selvi.ask.status === "pending");
+
+  const pillState: PhonePillState = hasClaim
+    ? "Claim filed"
+    : hasPendingAsk
+      ? "Asking"
+      : "Listening";
+
+  const sarvamEntry = health?.integrations?.sarvam;
+  const sarvamMode =
+    typeof sarvamEntry === "string" ? sarvamEntry : sarvamEntry?.mode;
+  const sarvamLive = sarvamMode === "live";
+
+  const baselineRupees = formatRupeesFromPaise(selvi?.baseline_paise ?? 320100);
+  const todayRupees = formatRupeesFromPaise(selvi?.today_income_paise ?? 0);
+
   return (
-    <div className="min-h-screen bg-[var(--ink)] p-6 text-[var(--text-dark-1)]">
-      <div className="mx-auto mb-4 flex max-w-[390px] items-center justify-between">
+    <div className="min-h-screen bg-[var(--ink)] px-4 py-1.5 text-[var(--text-dark-1)] max-[480px]:p-0">
+      <div className="mx-auto mb-1.5 flex max-w-[390px] items-center justify-between max-[480px]:hidden">
         <Link
           to="/console"
-          className="text-[13px] font-medium text-[var(--marigold)] underline underline-offset-2"
+          className="text-[14px] leading-[20px] font-medium text-[var(--marigold)] underline underline-offset-2"
         >
           Back to /console
         </Link>
+        <Link
+          to="/adjuster"
+          className="text-[14px] leading-[20px] font-medium text-[var(--text-dark-2)] underline underline-offset-2"
+        >
+          Adjuster desk
+        </Link>
       </div>
+
       <PhoneFrame>
-        <div className="flex flex-1 flex-col justify-between gap-4">
-          <PhoneStatusPill state="Covered" shopName="Selvi Flowers" />
-          <ShareDisclosure />
+        <div className="flex flex-1 flex-col justify-between gap-2.5">
+          <div className="flex flex-col gap-2.5">
+            <PhoneStatusPill
+              state={pillState}
+              shopName={`${selvi?.name ?? "Flower stall"} · ${selvi?.owner ?? "Selvi"}`}
+            />
+
+            {errorMsg ? (
+              <div
+                role="alert"
+                className="rounded-[4px] border border-[var(--danger-paper)] bg-[var(--card)] p-3 text-[14px] leading-[20px] text-[var(--danger-paper)]"
+              >
+                {errorMsg}
+              </div>
+            ) : null}
+
+            {/* Screen 1: Listening */}
+            {!hasPendingAsk && !hasClaim ? (
+              <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4">
+                <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5">
+                  <span className="text-[12px] leading-[16px] font-semibold uppercase tracking-[0.4px] text-[var(--text-3)]">
+                    Panagal Park Road · 21 Oct 2026
+                  </span>
+                  <StateLabel kind="simulated" text="Simulated" surface="paper" />
+                </div>
+
+                <div className="flex flex-col gap-2 py-1">
+                  <ReceiptLine label="Usual daily total" value={baselineRupees} />
+                  <ReceiptLine label="Today so far" value={`${todayRupees} today`} />
+                  <ReceiptLine label="Monthly cover fee" value="₹35" />
+                </div>
+
+                <p className="border-t border-[var(--line)] pt-3 text-[14px] leading-[20px] text-[var(--text-2)]">
+                  {declined
+                    ? "You chose not to file a claim for today."
+                    : "When your Soundbox goes silent and most of Panagal Park Road shuts in heavy rain, Silent Claim asks one question in Tamil and files your claim on one tap."}
+                </p>
+              </div>
+            ) : null}
+
+            {/* Screen 2: Ask */}
+            {hasPendingAsk && selvi?.ask ? (
+              <>
+                <VoicePrompt
+                  promptTextTa={selvi.ask.prompt_text_ta}
+                  promptEn="Nine of twelve shops on your street were shut by the rain. Shall I file your insurance claim?"
+                  audioUrl={
+                    selvi.ask.has_audio
+                      ? `/api/asks/${encodeURIComponent(selvi.ask.id)}/audio`
+                      : null
+                  }
+                  live={sarvamLive}
+                />
+
+                <ShareDisclosure />
+
+                <ConsentButton
+                  disabled={submitting}
+                  onConfirm={() => void handleConsent(true)}
+                  onDecline={() => void handleConsent(false)}
+                />
+
+                <div className="flex items-center justify-between rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-3.5 py-2.5">
+                  <span className="text-[14px] leading-[20px] text-[var(--text-2)]">
+                    Need to explain in your own words?
+                  </span>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={() => void handleVoiceToggle()}
+                    className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--paper)] px-3 py-1.5 text-[14px] leading-[20px] font-medium text-[var(--text-1)] hover:border-[var(--rust)] disabled:opacity-50 cursor-pointer"
+                  >
+                    <MicGlyph className="h-4 w-4 text-[var(--rust)]" />
+                    <span>
+                      {recording ? "Stop & send" : "Reply by voice"}
+                    </span>
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {/* Screen 3 & 4: Filed + Money back */}
+            {hasClaim && selvi?.claim ? (
+              <div className="flex flex-col gap-3.5">
+                <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--ok-paper)]/40 bg-[var(--card)] p-4">
+                  <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-[var(--ok-paper)] text-[var(--paper)]">
+                        <CheckGlyph className="h-4 w-4" />
+                      </span>
+                      <h2 className="font-heading text-[var(--text-1)]">
+                        Claim filed
+                      </h2>
+                    </div>
+                    <StateLabel kind="filed" text="Filed" surface="paper" />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <ReceiptLine label="Forms filled" value={0} />
+                    <ReceiptLine label="Usual daily total" value={baselineRupees} />
+                    <ReceiptLine label="Event-day total" value="₹0 today" />
+                    <ReceiptLine label="Street closures" value="9 of 12" />
+                    <ReceiptLine label="Rainfall" value="27.7 mm" />
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-[var(--line)] pt-3">
+                    <span className="font-figures text-[14px] leading-[20px] text-[var(--text-2)]">
+                      {selvi.claim.id}
+                    </span>
+                    <a
+                      href={selvi.claim.evidence_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[14px] leading-[20px] font-semibold text-[var(--rust)] underline underline-offset-2"
+                    >
+                      <span>Evidence PDF</span>
+                      <OpenExternalGlyph className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Screen 4: Money back receipt */}
+                {hasRefund && selvi.claim.refund ? (
+                  <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4">
+                    <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <ReceiptGlyph className="h-4 w-4 text-[var(--rust)]" />
+                        <span className="font-sign-sm text-[var(--text-1)]">
+                          ₹35 returned
+                        </span>
+                      </div>
+                      <StateLabel
+                        kind={
+                          selvi.claim.refund.label
+                            .toLowerCase()
+                            .includes("simulated")
+                            ? "simulated"
+                            : "live"
+                        }
+                        text={selvi.claim.refund.label}
+                        surface="paper"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <ReceiptLine
+                        label="Plan fee refunded"
+                        value={formatRupeesFromPaise(
+                          selvi.claim.refund.amount_paise
+                        )}
+                      />
+                      <ReceiptLine
+                        label="Refund ID"
+                        value={selvi.claim.refund.refund_id}
+                      />
+                      <ReceiptLine
+                        label="Status"
+                        value={selvi.claim.refund.status}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5 text-[14px] leading-[20px] text-[var(--text-2)]">
+                    Your evidence pack is in the adjuster batch. As soon as the adjuster approves the batch, this month&apos;s ₹35 plan fee is refunded automatically.
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          <footer className="flex items-center justify-between border-t border-[var(--line)] pt-2 text-[14px] leading-[20px] text-[var(--text-3)]">
+            <span>Rule v1.0.0</span>
+            <Link
+              to="/privacy"
+              className="font-medium text-[var(--rust)] underline underline-offset-2"
+            >
+              Privacy Notice
+            </Link>
+          </footer>
         </div>
       </PhoneFrame>
     </div>
   );
 }
-

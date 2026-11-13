@@ -116,17 +116,43 @@ function synthesizeStepsFromShops(
           },
         });
       }
-      if (s.ask.ask_kind === "voice" && s.ask.status === "answered") {
+      if (s.ask.ask_kind === "voice" && s.ask.status !== "pending") {
         records.push({
           id: `syn-classify-${s.shop_id}`,
           receivedAt: s.ask.answered_at ?? nowIso,
           event: {
             node: "classify",
             status: "ok",
-            detail: `${s.shop_id} voice classified as ${s.ask.cause_label ?? "other"}`,
+            detail: `${s.shop_id} classified as ${s.ask.cause_label ?? "other"}`,
             live: !demoOffline,
           },
         });
+        if (s.ask.cause_label === "leave" || s.ask.status === "closed") {
+          records.push({
+            id: `syn-close-${s.shop_id}`,
+            receivedAt: s.ask.answered_at ?? nowIso,
+            event: {
+              node: "close",
+              status: "ok",
+              detail: `Closed ask for ${s.shop_id} (leave)`,
+              live: !demoOffline,
+            },
+          });
+        } else if (
+          s.ask.cause_label === "qr_switch" ||
+          s.ask.status === "human_review"
+        ) {
+          records.push({
+            id: `syn-review-${s.shop_id}`,
+            receivedAt: s.ask.answered_at ?? nowIso,
+            event: {
+              node: "human_review",
+              status: "ok",
+              detail: `Queued ${s.shop_id} for human review (qr_switch)`,
+              live: !demoOffline,
+            },
+          });
+        }
       }
     }
     if (s.claim) {
@@ -140,6 +166,18 @@ function synthesizeStepsFromShops(
           live: !demoOffline,
         },
       });
+      if (s.claim.refund) {
+        records.push({
+          id: `syn-payback-${s.shop_id}`,
+          receivedAt: nowIso,
+          event: {
+            node: "payback",
+            status: "ok",
+            detail: `Refund ${s.claim.refund.refund_id} for ${s.shop_id}`,
+            live: !demoOffline,
+          },
+        });
+      }
     }
   }
   return records;
@@ -410,7 +448,7 @@ export function Console() {
       {errorBanner ? (
         <div
           role="alert"
-          className="border-b border-[var(--danger)]/40 bg-[var(--ink-2)] px-6 py-2 text-[13px] text-[var(--danger)]"
+          className="border-b border-[var(--danger)]/40 bg-[var(--ink-2)] px-6 py-2 text-[14px] leading-[20px] text-[var(--danger)]"
         >
           {errorBanner}
         </div>

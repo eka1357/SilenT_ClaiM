@@ -10,36 +10,25 @@ export function Shutter({ isDown, className }: ShutterProps) {
   return (
     <motion.div
       initial={false}
-      animate={{ height: isDown ? "56%" : "0%" }}
+      animate={{ height: isDown ? "58%" : "0%" }}
       transition={{ duration: 0.5, ease: "easeOut" }}
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden border-b border-[var(--line-dark)] bg-[var(--ink-3)]",
-        !isDown && "border-b-0",
+        "pointer-events-none absolute inset-x-0 top-[24px] z-10 flex flex-col justify-between overflow-hidden bg-[var(--ink)]",
+        isDown ? "border-y-2 border-[var(--line-dark)]" : "border-y-0",
         className
       )}
     >
-      <svg
-        viewBox="0 0 160 68"
-        preserveAspectRatio="none"
-        className="h-full w-full text-[var(--line-dark)]"
-      >
-        <line x1="0" y1="11" x2="160" y2="11" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="0" y1="22" x2="160" y2="22" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="0" y1="33" x2="160" y2="33" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="0" y1="44" x2="160" y2="44" stroke="currentColor" strokeWidth="1.5" />
-        <line x1="0" y1="55" x2="160" y2="55" stroke="currentColor" strokeWidth="1.5" />
-        <rect
-          x="68"
-          y="60"
-          width="24"
-          height="4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.25"
-        />
-      </svg>
+      <div className="flex h-full w-full flex-col gap-[2px] bg-[var(--ink)]">
+        <div className="flex-1 border-b border-[var(--line-dark)] bg-[var(--ink-3)]" />
+        <div className="flex-1 border-b border-[var(--line-dark)] bg-[var(--ink-3)]" />
+        <div className="flex-1 border-b border-[var(--line-dark)] bg-[var(--ink-3)]" />
+        <div className="flex-1 border-b border-[var(--line-dark)] bg-[var(--ink-3)]" />
+        <div className="flex-1 border-b border-[var(--line-dark)] bg-[var(--ink-3)]" />
+        <div className="flex h-[8px] shrink-0 items-center justify-center border-t border-[var(--line-dark)] bg-[var(--ink-3)]">
+          <div className="h-[3px] w-8 border border-[var(--text-dark-3)] bg-[var(--ink)]" />
+        </div>
+      </div>
     </motion.div>
   );
 }
-

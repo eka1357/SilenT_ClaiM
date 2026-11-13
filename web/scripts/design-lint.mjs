@@ -76,6 +76,11 @@ for (const filePath of files) {
       violations.push(`${rel}:${lineNum} - Large border radius "${radiusMatch[0]}" is forbidden (max 8px)`);
     }
 
+    const tinyTextMatch = line.match(/\btext-\[(?:[0-9]|1[013])(?:\.[0-9]+)?px\]/);
+    if (tinyTextMatch) {
+      violations.push(`${rel}:${lineNum} - Sub-minimum font size "${tinyTextMatch[0]}" is forbidden (12px min for labels, 14px min for meta/table)`);
+    }
+
     if (/lucide-react/.test(line)) {
       violations.push(`${rel}:${lineNum} - Importing from "lucide-react" is forbidden`);
     }

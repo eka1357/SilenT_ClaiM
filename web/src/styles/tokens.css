@@ -110,6 +110,13 @@
   line-height: 27px;
 }
 
+.font-tamil-prompt {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 36px;
+}
+
 .font-figures {
   font-family: var(--font-mono);
   font-weight: 500;
@@ -121,8 +128,8 @@
 .font-figures-sm {
   font-family: var(--font-mono);
   font-weight: 400;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-variant-numeric: tabular-nums;
 }
 

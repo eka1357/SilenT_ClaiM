@@ -47,20 +47,22 @@ export function RoadBand({
         <span className="text-[var(--text-dark-3)]" aria-hidden="true">
           |
         </span>
-        <span className="font-figures-sm text-[var(--text-dark-2)]">
+        <span className="font-figures text-[14px] leading-[20px] text-[var(--text-dark-2)]">
           {formattedDay}
         </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-1.5 text-[12px] leading-[16px] text-[var(--text-dark-2)]">
+        <div className="flex items-center gap-1.5 text-[14px] leading-[20px] text-[var(--text-dark-2)]">
           <RainDropGlyph className="h-4 w-4 text-[var(--live)]" />
           <span className="font-figures text-[var(--text-dark-1)]">{rainDisplay}</span>
-          <span className="text-[var(--text-dark-3)]">({sourceDisplay})</span>
+          <span className="text-[14px] leading-[20px] text-[var(--text-dark-3)]">
+            ({sourceDisplay})
+          </span>
           <StateLabel kind={rainLive ? "live" : "replay"} />
         </div>
 
-        <div className="flex items-center gap-1.5 text-[12px] leading-[16px] text-[var(--text-dark-1)]">
+        <div className="flex items-center gap-1.5 text-[14px] leading-[20px] text-[var(--text-dark-1)]">
           <ShutterGlyph className="h-4 w-4 text-[var(--marigold)]" />
           <span className="font-figures">{shuttersDown}</span>
           <span className="text-[var(--text-dark-2)]">of</span>
@@ -71,4 +73,3 @@ export function RoadBand({
     </div>
   );
 }
-

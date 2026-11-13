@@ -139,7 +139,7 @@ export interface BatchClaimItem {
 
 export interface BatchInfo {
   id: string;
-  status: "pending" | "approved";
+  status: "open" | "pending" | "approved";
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;

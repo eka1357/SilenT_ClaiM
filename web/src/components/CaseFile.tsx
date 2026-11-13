@@ -24,6 +24,18 @@ export interface CaseFileProps {
   className?: string;
 }
 
+const PLAIN_NODE_NAMES: Record<AgentStepEvent["node"], string> = {
+  sense: "Check",
+  confirm: "Rain",
+  ask: "Ask",
+  classify: "Classify",
+  file: "File",
+  human_review: "Review",
+  close: "Close",
+  batch: "Batch",
+  payback: "Pay back",
+};
+
 function extractShopId(detail: string): string {
   const match = detail.match(/\bshop_\d{2}\b/);
   return match ? match[0] : "street";
@@ -52,7 +64,7 @@ function buildPlainTitle(
       return `Checking street quorum and Open-Meteo rain for ${ownerOrName}`;
     }
     if (event.detail.includes("-> file")) {
-      return `Checked rain and street quorum for Panagal Park Road: eligible to file for ${ownerOrName}`;
+      return `Checked rain for Panagal Park Road: eligible to file for ${ownerOrName}`;
     }
     if (event.detail.includes("-> ask")) {
       return `Checked rain and street quorum: voice check required for ${ownerOrName}`;
@@ -62,7 +74,7 @@ function buildPlainTitle(
 
   if (event.node === "ask") {
     if (event.detail.includes("Consent recorded")) {
-      return `Consent recorded for ${ownerOrName}`;
+      return `Consent recorded from ${ownerOrName}`;
     }
     if (event.detail.includes("Ask declined")) {
       return `Consent declined by ${ownerOrName}`;
@@ -81,8 +93,23 @@ function buildPlainTitle(
       return `Transcribing and classifying Tamil voice reply from ${ownerOrName}`;
     }
     const clsMatch = event.detail.match(/classified as ([a-z_]+)/i);
-    const label = clsMatch ? clsMatch[1] : event.detail;
-    return `Classified Tamil voice reply from ${ownerOrName}: ${label}`;
+    const rawLabel = clsMatch ? clsMatch[1] : event.detail;
+    const readableLabel =
+      rawLabel === "qr_switch"
+        ? "alternate QR reported"
+        : rawLabel === "leave"
+          ? "closed on personal leave"
+          : rawLabel === "flood_closure"
+            ? "flood closure confirmed"
+            : rawLabel;
+    return `Classified Tamil voice reply from ${ownerOrName}: ${readableLabel}`;
+  }
+
+  if (event.node === "file") {
+    if (event.status === "start") {
+      return `Building evidence pack PDF for ${ownerOrName}`;
+    }
+    return `Filed claim and generated evidence pack PDF for ${ownerOrName}`;
   }
 
   if (event.node === "close") {
@@ -91,13 +118,6 @@ function buildPlainTitle(
 
   if (event.node === "human_review") {
     return `Queued ${ownerOrName} for human review (alternate QR reported)`;
-  }
-
-  if (event.node === "file") {
-    if (event.status === "start") {
-      return `Building evidence pack PDF for ${ownerOrName}`;
-    }
-    return `Filed claim and generated evidence pack PDF for ${ownerOrName}`;
   }
 
   if (event.node === "batch") {
@@ -122,7 +142,31 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
     shopMap.set(s.shop_id, s);
   }
 
-  const enriched: CaseStepItem[] = [...steps].reverse().map((rec) => {
+  // Deduplicate in-place by (shopId, node): later updates overwrite "start" in place.
+  const mergedByKey = new Map<string, RawStepRecord>();
+  const orderedKeys: string[] = [];
+
+  for (const rec of steps) {
+    const shopId = extractShopId(rec.event.detail);
+    const key = `${shopId}::${rec.event.node}`;
+    if (!mergedByKey.has(key)) {
+      orderedKeys.push(key);
+    } else {
+      const idx = orderedKeys.indexOf(key);
+      if (idx >= 0) {
+        orderedKeys.splice(idx, 1);
+      }
+      orderedKeys.push(key);
+    }
+    mergedByKey.set(key, rec);
+  }
+
+  const deduplicatedRecords = [...orderedKeys]
+    .reverse()
+    .map((k) => mergedByKey.get(k))
+    .filter((item): item is RawStepRecord => item !== undefined);
+
+  const enriched: CaseStepItem[] = deduplicatedRecords.map((rec) => {
     const shopId = extractShopId(rec.event.detail);
     const shop = shopMap.get(shopId);
     const shopLabel = shop
@@ -130,9 +174,10 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
       : "Panagal Park Road (Batch)";
     return {
       ...rec.event,
-      id: rec.id,
+      id: `${shopId}-${rec.event.node}`,
       shopId,
       shopLabel,
+      nodeLabel: PLAIN_NODE_NAMES[rec.event.node] ?? rec.event.node,
       plainTitle: buildPlainTitle(rec.event, shopMap),
       receivedAt: rec.receivedAt,
     };
@@ -166,18 +211,18 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
       <div className="mb-2 flex items-center justify-between gap-2 border-b border-[var(--line-dark)] pb-2">
         <div className="flex items-center gap-2">
           <h2 className="font-heading text-[var(--text-dark-1)]">Case File</h2>
-          <span className="font-figures-sm text-[var(--text-dark-3)]">
-            ({steps.length} steps)
+          <span className="font-figures text-[14px] leading-[20px] text-[var(--text-dark-3)]">
+            ({enriched.length} steps)
           </span>
         </div>
-        <span className="text-[12px] leading-[16px] text-[var(--text-dark-3)]">
+        <span className="text-[14px] leading-[20px] text-[var(--text-dark-3)]">
           Newest first, grouped by shop
         </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {groups.length === 0 ? (
-          <div className="flex h-full items-center justify-center py-8 text-center text-[13px] leading-[18px] text-[var(--text-dark-3)]">
+          <div className="flex h-full items-center justify-center py-8 text-center text-[14px] leading-[20px] text-[var(--text-dark-3)]">
             Press &ldquo;Reset and run the flood&rdquo; to watch the detector and agent work across Panagal Park Road.
           </div>
         ) : (
@@ -191,7 +236,7 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
                   <h3 className="text-[12px] leading-[16px] font-semibold uppercase tracking-[0.4px] text-[var(--text-dark-2)]">
                     {grp.shopLabel}
                   </h3>
-                  <span className="font-figures-sm text-[var(--text-dark-3)]">
+                  <span className="font-figures text-[14px] leading-[20px] text-[var(--text-dark-3)]">
                     {grp.items.length} {grp.items.length === 1 ? "step" : "steps"}
                   </span>
                 </div>
@@ -219,7 +264,7 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Step Details</SheetTitle>
-            <SheetDescription>
+            <SheetDescription className="text-[14px] leading-[20px]">
               Recorded agent node payload in IBM Plex Mono.
             </SheetDescription>
           </SheetHeader>
@@ -229,7 +274,7 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
               <div className="flex items-center justify-between gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-3">
                 <div>
                   <div className="text-[12px] leading-[16px] font-semibold uppercase text-[var(--text-2)]">
-                    {selectedStep.shopLabel}
+                    {selectedStep.shopLabel} · {selectedStep.nodeLabel}
                   </div>
                   <div className="mt-0.5 text-[14px] leading-[20px] font-medium text-[var(--text-1)]">
                     {selectedStep.plainTitle}
@@ -242,13 +287,14 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
               </div>
 
               <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-3">
-                <div className="mb-1.5 text-[11px] leading-[14px] font-medium uppercase tracking-[0.4px] text-[var(--text-3)]">
+                <div className="mb-1.5 text-[12px] leading-[16px] font-medium uppercase tracking-[0.4px] text-[var(--text-3)]">
                   Step Event Payload (JSON)
                 </div>
-                <pre className="overflow-x-auto whitespace-pre-wrap break-words font-figures-sm text-[var(--text-1)]">
+                <pre className="overflow-x-auto whitespace-pre-wrap break-words font-figures text-[14px] leading-[20px] text-[var(--text-1)]">
                   {JSON.stringify(
                     {
                       id: selectedStep.id,
+                      step: selectedStep.nodeLabel,
                       node: selectedStep.node,
                       status: selectedStep.status,
                       shop_id: selectedStep.shopId,
@@ -268,4 +314,3 @@ export function CaseFile({ steps, shops, className }: CaseFileProps) {
     </section>
   );
 }
-

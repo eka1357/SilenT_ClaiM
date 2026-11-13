@@ -48,10 +48,10 @@ export function Receipt({
   const evalMetrics = metrics?.eval;
   const claimsRightText = evalMetrics
     ? `${evalMetrics.claims_right} of ${evalMetrics.claims_filed}`
-    : "18 of 18";
+    : "17 of 18";
   const closuresMissedText = evalMetrics
     ? `${evalMetrics.closures_missed} of ${evalMetrics.total_closures}`
-    : "0 of 18";
+    : "1 of 18";
 
   const activeClaimsCount =
     batchCount > 0 ? batchCount : (metrics?.claims_filed_in_run ?? 0);
@@ -64,9 +64,9 @@ export function Receipt({
         className
       )}
     >
-      <div className="flex min-h-0 flex-1 flex-col p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-3.5">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
+        <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
           <div className="flex items-center gap-2">
             <ReceiptGlyph className="h-4 w-4 text-[var(--rust)]" />
             <h2 className="font-sign-sm text-[var(--text-1)]">RUN RECEIPT</h2>
@@ -79,7 +79,7 @@ export function Receipt({
         </div>
 
         {/* Dotted-leader metric rows */}
-        <div className="mt-3 flex flex-col gap-2 border-b border-[var(--line)] pb-3">
+        <div className="mt-2 flex flex-col gap-1 border-b border-[var(--line)] pb-2">
           <ReceiptLine label="Forms filled" value={formsFilled} />
           <ReceiptLine label="Taps" value={merchantTaps} />
           <ReceiptLine label="Time to file" value={timeToFile} />
@@ -91,14 +91,14 @@ export function Receipt({
         </div>
 
         {/* Batch link section */}
-        <div className="mt-3 border-b border-[var(--line)] pb-3">
-          <div className="mb-1.5 text-[11px] leading-[14px] font-semibold uppercase tracking-[0.4px] text-[var(--text-3)]">
+        <div className="mt-2 border-b border-[var(--line)] pb-2">
+          <div className="mb-1 text-[12px] leading-[16px] font-semibold uppercase tracking-[0.4px] text-[var(--text-3)]">
             Adjuster Batch
           </div>
           {batchId || batchCount > 0 ? (
             <Link
               to="/adjuster"
-              className="flex items-center justify-between gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-3 py-2 font-figures-sm text-[var(--text-1)] hover:border-[var(--rust)]"
+              className="flex items-center justify-between gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 font-figures text-[14px] leading-[20px] text-[var(--text-1)] hover:border-[var(--rust)]"
             >
               <span>
                 Batch of {batchCount} {batchStatus === "approved" ? "approved" : "ready"}: open adjuster view
@@ -106,11 +106,11 @@ export function Receipt({
               <OpenExternalGlyph className="h-4 w-4 shrink-0 text-[var(--rust)]" />
             </Link>
           ) : activeClaimsCount > 0 ? (
-            <div className="flex flex-col gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-2.5 font-figures-sm text-[var(--text-2)]">
+            <div className="flex flex-col gap-1 rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-2 font-figures text-[14px] leading-[20px] text-[var(--text-2)]">
               <div>
                 {activeClaimsCount} of 7 claims filed (awaiting Selvi&apos;s tap)
               </div>
-              <div className="flex items-center gap-3 pt-0.5">
+              <div className="flex items-center gap-3">
                 <Link
                   to="/merchant"
                   className="inline-flex items-center gap-1 font-semibold text-[var(--rust)] underline underline-offset-2"
@@ -127,49 +127,46 @@ export function Receipt({
               </div>
             </div>
           ) : (
-            <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-3 py-2 font-figures-sm text-[var(--text-3)]">
+            <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 font-figures text-[14px] leading-[20px] text-[var(--text-3)]">
               No batch ready yet. Run the scenario to generate claims.
             </div>
           )}
         </div>
 
         {/* Plan-fee refund lines */}
-        <div className="mt-3 flex min-h-0 flex-1 flex-col">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[11px] leading-[14px] font-semibold uppercase tracking-[0.4px] text-[var(--text-3)]">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[12px] leading-[16px] font-semibold uppercase tracking-[0.4px] text-[var(--text-3)]">
               Plan-Fee Refunds
             </span>
-            <span className="font-figures-sm text-[var(--text-3)]">
+            <span className="font-figures text-[14px] leading-[20px] text-[var(--text-3)]">
               {refunds.length} processed
             </span>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
             {refunds.length === 0 ? (
-              <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-3 py-2.5 font-figures-sm text-[var(--text-3)]">
+              <div className="rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-3 py-2 font-figures text-[14px] leading-[20px] text-[var(--text-3)]">
                 Approve the batch on /adjuster to trigger Rs 35 plan-fee refunds.
               </div>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 {refunds.map((item) => {
                   const shop = item.shop_id ? shopMap.get(item.shop_id) : undefined;
-                  const ownerLabel = shop ? shop.owner : (item.shop_id ?? item.claim_id);
+                  const ownerLabel = shop
+                    ? shop.owner
+                    : (item.shop_id ?? item.claim_id);
                   const amountStr = formatRupeesFromPaise(item.amount_paise);
                   const isSimulated = item.label.toLowerCase().includes("simulated");
                   return (
                     <div
                       key={item.refund_id}
-                      className="flex flex-col gap-1 rounded-[4px] border border-[var(--line)] bg-[var(--card)] p-2 font-figures-sm text-[var(--text-1)]"
+                      className="flex flex-col gap-0.5 rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-2 py-1 font-figures text-[14px] leading-[18px] text-[var(--text-1)]"
                     >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="truncate font-medium">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="font-semibold">
                           {amountStr} plan fee -&gt; {ownerLabel}
                         </span>
-                        <span className="shrink-0 text-[11px] text-[var(--text-3)]">
-                          ({item.refund_id})
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-1">
                         <StateLabel
                           kind={
                             isSimulated
@@ -181,6 +178,9 @@ export function Receipt({
                           text={item.label}
                           surface="paper"
                         />
+                      </div>
+                      <div className="text-[12px] leading-[16px] text-[var(--text-3)]">
+                        {item.refund_id}
                       </div>
                     </div>
                   );
@@ -208,4 +208,3 @@ export function Receipt({
     </aside>
   );
 }
-

@@ -32,55 +32,62 @@ export function Shopfront({ shop, className }: ShopfrontProps) {
         ? "text-[var(--marigold)]"
         : statusText === "Trading"
           ? "text-[var(--live)]"
-          : "text-[var(--text-dark-3)]";
+          : "text-[var(--text-dark-2)]";
+
+  const takingsLabel = isShutterDown
+    ? `${formatRupeesFromPaise(shop.today_income_paise)} today`
+    : formatRupeesFromPaise(shop.today_income_paise);
 
   return (
     <article
       aria-label={`${shop.name}, ${shop.owner}, ${statusText}`}
       className={cn(
-        "relative flex h-[120px] w-full flex-col justify-between overflow-hidden rounded-[6px] border border-[var(--line-dark)] bg-[var(--ink-2)] p-2.5",
+        "relative flex h-[126px] w-full flex-col justify-between overflow-hidden rounded-[6px] border border-[var(--line-dark)] bg-[var(--ink-2)] p-2",
         statusText === "Filed" && "border-[var(--ok)]/50",
         statusText === "Asked" && "border-[var(--marigold)]/60",
         className
       )}
     >
+      {/* Top category & takings line (always visible above shutter) */}
+      <div className="relative z-20 flex h-[18px] shrink-0 items-center justify-between gap-1">
+        <span className="truncate text-[12px] leading-[16px] font-medium uppercase tracking-[0.3px] text-[var(--text-dark-2)]">
+          {shop.category.replace(/_/g, " ")}
+        </span>
+        <span className="shrink-0 font-figures text-[14px] leading-[18px] text-[var(--text-dark-1)]">
+          {takingsLabel}
+        </span>
+      </div>
+
+      {/* Shutter covering the 60% middle storefront window when down */}
       <Shutter isDown={isShutterDown} />
 
       {eventSimulatedLabel ? (
-        <div className="pointer-events-none absolute right-2 top-[42px] z-20">
+        <div className="pointer-events-none absolute right-1.5 top-[44px] z-20">
           <StateLabel
             kind="simulated"
             text={eventSimulatedLabel}
-            className="gap-1 bg-[var(--ink)] px-1.5 py-0.5 text-[9.5px] leading-[12px]"
+            className="bg-[var(--ink)] px-1.5 py-0.5"
           />
         </div>
       ) : null}
 
-      {/* Top 56%: Shop window with category, today's payments, and 24h sparkline */}
-      <div className="relative z-0 flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-1 text-[11px] leading-[14px] text-[var(--text-dark-3)]">
-          <span className="truncate uppercase tracking-[0.4px]">{shop.category}</span>
-          <span className="font-figures-sm text-[var(--text-dark-2)]">
-            {formatRupeesFromPaise(shop.today_income_paise)}
-          </span>
-        </div>
-        <div
-          className={cn(
-            "pt-0.5",
-            isShutterDown ? "text-[var(--text-dark-3)]" : "text-[var(--live)]"
-          )}
-        >
-          <Sparkline values={hourlyAmounts} maxReference={maxRef} width={136} height={24} />
-        </div>
+      {/* Middle window: 24h sparkline (visible when shutter is open) */}
+      <div
+        className={cn(
+          "relative z-0 flex flex-1 items-center py-1",
+          isShutterDown ? "text-[var(--text-dark-3)] opacity-25" : "text-[var(--live)]"
+        )}
+      >
+        <Sparkline values={hourlyAmounts} maxReference={maxRef} width={136} height={24} />
       </div>
 
-      {/* Bottom 44%: Fascia with shop name, owner, polite live status, and event-only simulated label */}
-      <div className="relative z-20 flex flex-col gap-0.5 pt-1">
+      {/* Bottom fascia: Shop name, owner, and polite live status */}
+      <div className="relative z-20 flex shrink-0 flex-col gap-0.5 bg-[var(--ink-2)] pt-1">
         <div className="flex items-baseline justify-between gap-1">
-          <h3 className="truncate text-[13px] leading-[16px] font-semibold text-[var(--text-dark-1)]">
+          <h3 className="truncate text-[14px] leading-[18px] font-semibold text-[var(--text-dark-1)]">
             {shop.name}
           </h3>
-          <span className="shrink-0 text-[11px] leading-[14px] text-[var(--text-dark-2)]">
+          <span className="shrink-0 text-[14px] leading-[18px] text-[var(--text-dark-2)]">
             {shop.owner}
           </span>
         </div>
@@ -89,7 +96,7 @@ export function Shopfront({ shop, className }: ShopfrontProps) {
           <span
             aria-live="polite"
             className={cn(
-              "truncate text-[11px] leading-[14px] font-medium",
+              "truncate text-[12px] leading-[16px] font-medium",
               statusTone
             )}
           >
@@ -100,4 +107,3 @@ export function Shopfront({ shop, className }: ShopfrontProps) {
     </article>
   );
 }
-

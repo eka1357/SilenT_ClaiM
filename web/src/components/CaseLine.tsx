@@ -1,7 +1,6 @@
 import { motion } from "motion/react";
 import { AlertGlyph } from "@/components/glyphs/AlertGlyph";
 import { CheckGlyph } from "@/components/glyphs/CheckGlyph";
-import { PlayGlyph } from "@/components/glyphs/PlayGlyph";
 import type { AgentStepEvent } from "@/lib/stream";
 import { cn } from "@/lib/utils";
 import { StateLabel } from "./StateLabel";
@@ -10,6 +9,7 @@ export interface CaseStepItem extends AgentStepEvent {
   id: string;
   shopId: string;
   shopLabel: string;
+  nodeLabel: string;
   plainTitle: string;
   receivedAt: string;
 }
@@ -27,7 +27,10 @@ export function CaseLine({ step, onOpenDetails, className }: CaseLineProps) {
     ) : step.status === "ok" ? (
       <CheckGlyph className="h-4 w-4 shrink-0 text-[var(--ok)]" />
     ) : (
-      <PlayGlyph className="h-3.5 w-3.5 shrink-0 text-[var(--marigold)]" />
+      <span
+        aria-label="Running"
+        className="inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[var(--marigold)] border-t-transparent"
+      />
     );
 
   return (
@@ -42,10 +45,10 @@ export function CaseLine({ step, onOpenDetails, className }: CaseLineProps) {
     >
       <div className="flex min-w-0 items-center gap-2.5">
         {statusIcon}
-        <span className="shrink-0 rounded-[2px] border border-[var(--line-dark)] bg-[var(--ink-3)] px-1.5 py-0.5 font-figures-sm uppercase text-[var(--text-dark-2)]">
-          {step.node}
+        <span className="shrink-0 rounded-[2px] border border-[var(--line-dark)] bg-[var(--ink-3)] px-2 py-0.5 text-[12px] leading-[16px] font-medium uppercase tracking-[0.4px] text-[var(--text-dark-2)]">
+          {step.nodeLabel}
         </span>
-        <span className="truncate text-[13px] leading-[18px] text-[var(--text-dark-1)]">
+        <span className="truncate text-[14px] leading-[20px] text-[var(--text-dark-1)]">
           {step.plainTitle}
         </span>
       </div>
@@ -55,7 +58,7 @@ export function CaseLine({ step, onOpenDetails, className }: CaseLineProps) {
         <button
           type="button"
           onClick={() => onOpenDetails(step)}
-          className="rounded-[2px] px-1.5 py-0.5 text-[12px] leading-[16px] font-medium text-[var(--marigold)] underline underline-offset-2 hover:opacity-85 cursor-pointer"
+          className="rounded-[2px] px-1.5 py-0.5 text-[14px] leading-[20px] font-medium text-[var(--marigold)] underline underline-offset-2 hover:opacity-85 cursor-pointer"
         >
           Details
         </button>
@@ -63,4 +66,3 @@ export function CaseLine({ step, onOpenDetails, className }: CaseLineProps) {
     </motion.div>
   );
 }
-

@@ -72,9 +72,8 @@ export const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-[12px] leading-[16px] text-[var(--text-2)]", className)}
+    className={cn("text-[14px] leading-[20px] text-[var(--text-2)]", className)}
     {...props}
   />
 ));
 SheetDescription.displayName = DialogPrimitive.Description.displayName;
-

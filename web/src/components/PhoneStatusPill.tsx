@@ -1,11 +1,14 @@
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { StateLabel, type StateLabelKind } from "./StateLabel";
 
 export type PhonePillState =
+  | "Listening"
+  | "Asking"
+  | "Claim filed"
   | "Covered"
   | "Checking"
   | "Action needed"
-  | "Claim filed"
   | "Refunded";
 
 export interface PhoneStatusPillProps {
@@ -20,29 +23,34 @@ export function PhoneStatusPill({
   className,
 }: PhoneStatusPillProps) {
   const kindMap: Record<PhonePillState, StateLabelKind> = {
+    Listening: "live",
+    Asking: "replay",
+    "Claim filed": "filed",
     Covered: "live",
     Checking: "replay",
     "Action needed": "replay",
-    "Claim filed": "filed",
     Refunded: "filed",
   };
 
   return (
-    <div
+    <motion.div
+      layout
+      transition={{ duration: 0.2 }}
       aria-live="polite"
       className={cn(
-        "flex items-center justify-between gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-3.5 py-2.5",
+        "flex items-center justify-between gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-3 py-2",
         className
       )}
     >
       <div className="flex flex-col">
-        <span className="text-[11px] leading-[14px] uppercase tracking-[0.4px] text-[var(--text-3)]">
-          Silent Claim Protection
+        <span className="text-[12px] leading-[16px] font-medium uppercase tracking-[0.4px] text-[var(--text-3)]">
+          Income Protection Cover
         </span>
         <span className="font-heading text-[var(--text-1)]">{shopName}</span>
       </div>
-      <StateLabel kind={kindMap[state]} text={state} surface="paper" />
-    </div>
+      <motion.div layout key={state}>
+        <StateLabel kind={kindMap[state]} text={state} surface="paper" />
+      </motion.div>
+    </motion.div>
   );
 }
-

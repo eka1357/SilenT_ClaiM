@@ -10,7 +10,7 @@ export function ReceiptLine({ label, value, className }: ReceiptLineProps) {
   return (
     <div
       className={cn(
-        "flex items-baseline justify-between gap-2 font-figures text-[13px] leading-[20px] text-[var(--text-1)]",
+        "flex items-baseline justify-between gap-2 font-figures text-[14px] leading-[20px] text-[var(--text-1)]",
         className
       )}
     >
@@ -23,4 +23,3 @@ export function ReceiptLine({ label, value, className }: ReceiptLineProps) {
     </div>
   );
 }
-

@@ -87,7 +87,7 @@ export function StateLabel({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-[2px] border px-1.5 py-0.5 text-[11px] leading-[14px] font-medium uppercase tracking-[0.4px] whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-[2px] border px-1.5 py-0.5 text-[12px] leading-[16px] font-medium uppercase tracking-[0.4px] whitespace-nowrap",
         styles.border,
         styles.text,
         className
@@ -98,4 +98,3 @@ export function StateLabel({
     </span>
   );
 }
-
