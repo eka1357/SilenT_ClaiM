@@ -47,6 +47,12 @@ def test_lab_decide_all_seven_presets_and_zero_side_effects(tmp_path: Path) -> N
         assert body1["decision"] == "file"
         assert body1["decision_label"] == "Files the claim"
         assert body1["reason"] == "flood_quorum_and_rain"
+        assert body1["gates"]["drop_gate_label"] == "Drop gate: below 30%"
+        assert body1["gates"]["quorum_gate_label"] == "Quorum gate: 8 of 12 (60%)"
+        assert body1["gates"]["rain_gate_label"] == "Rain gate: 15 mm"
+        assert body1["gates"]["drop_gate_label"] == "Drop gate: below 30%"
+        assert body1["gates"]["quorum_gate_label"] == "Quorum gate: 8 of 12 (60%)"
+        assert body1["gates"]["rain_gate_label"] == "Rain gate: 15 mm"
 
         # Preset 2: One shop alone on a dry day -> ask
         r2 = client.post(

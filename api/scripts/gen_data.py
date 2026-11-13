@@ -410,7 +410,7 @@ def generate_eval_set(rng: np.random.Generator) -> None:
         ("leave", "leave", "ask", 14, 6),
         ("illness", "illness", "ask", 11, 4),
         ("qr_switch", "qr_switch", "ask", 10, 5),
-        ("weekly_holiday", "weekly_holiday", "ask", 7, 3),
+        ("weekly_holiday", "weekly_holiday", "none", 7, 3),
         ("power_cut", "power_cut", "ask", 7, 3),
     ]
 

@@ -18,6 +18,7 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:5173",
     channel: "msedge",
     viewport: { width: 1440, height: 900 },
+    video: { mode: "on", size: { width: 1440, height: 900 } },
     trace: "retain-on-failure",
   },
   webServer: [
@@ -30,6 +31,7 @@ export default defineConfig({
       env: {
         ...process.env,
         DEMO_OFFLINE: "1",
+        PAYTM_MODE: "pending",
       },
     },
     {

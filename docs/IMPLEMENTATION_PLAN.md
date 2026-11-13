@@ -11,6 +11,12 @@ The rule at every checkpoint: the demo runs end to end, even if parts are still 
 | A | Simulated data, pure detector rules, unit tests, held-out eval (18 claims filed, 17 right; 1 of 18 closures missed) | `441ac57`, `5b6935a` |
 | B | Open-Meteo, Sarvam TTS (`bulbul:v3`) and STT (`saaras:v4`), classifier (`sarvam-105b-conversations`), replay fixtures, offline contract tests | `ddbc407` |
 | C | Paytm staging client in pending mode, checksum signing, redaction, startup guard, `paytm_spike.py` with `--probe`, `--create`, `--order-id` | `c5e71e5` |
+| D1 | Backend spine: DB and seed, scenario runner and clock, SSE stream, LangGraph `sense, confirm, ask, classify, file`, consent and voice endpoints, evidence PDF, demo personas | `515fb3c` |
+| D2 | Adjuster batch approval, background plan-fee payback, `/api/metrics`, refund idempotency and monthly cap, one-page PDF evidence pack | `750c274`, `bf70e97`, `06c3b0e` |
+| E1 | Web scaffold, tokens, glyphs, `design-lint.mjs`, `/console` and `/dev/kit` | `77b87ec` |
+| E2 | `/merchant`, `/adjuster`, `/privacy` screens + `/console` shutter/case-file/typography fixes | `8052de6` |
+| F | Real consent decline (`வேண்டாம்`), three signature moments, LAN phone demo config, Playwright + Axe E2E | `1cde066` |
+| F3 | Weekly-holiday-today rule (`D27`), `/lab` ("Try to fool it") + `POST /api/lab/decide`, and `/merchant` claim tracker (`D26`) | `2ac55bd` |
 
 ## Build order (before the finale)
 

@@ -137,6 +137,12 @@ def main() -> None:
             f"(label={cls_res.cause_label.value}, conf={cls_res.confidence:.2f})"
         )
 
+    paytm_run_json = API_ROOT / "runs" / "paytm_spike.json"
+    if paytm_run_json.is_file():
+        paytm_fixture_path = FIXTURES_DIR / "paytm_refund_staging.json"
+        paytm_fixture_path.write_text(paytm_run_json.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"Recorded Paytm fixture: {paytm_fixture_path.name}")
+
     _assert_no_secrets(
         FIXTURES_DIR,
         [

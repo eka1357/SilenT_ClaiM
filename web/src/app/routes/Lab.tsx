@@ -195,8 +195,7 @@ export function Lab() {
               Try to fool the detector
             </h1>
             <p className="text-[14px] leading-[20px] text-[var(--text-2)]">
-              Every slider change calls <code className="font-mono-num">decide()</code> in{" "}
-              <code className="font-mono-num">detector/rules.py</code> directly. No AI decides eligibility or money.
+              Every change runs the same fixed rules the product uses. No AI decides eligibility or money.
             </p>
           </div>
 
@@ -277,7 +276,7 @@ export function Lab() {
                 />
                 <div className="flex justify-between font-mono-num text-[12px] leading-[16px] text-[var(--text-3)]">
                   <span>0 closed</span>
-                  <span>Quorum gate: 8 of 12 (60%)</span>
+                  <span>{result?.gates.quorum_gate_label ?? ""}</span>
                   <span>12 closed</span>
                 </div>
               </div>
@@ -310,7 +309,7 @@ export function Lab() {
                 />
                 <div className="flex justify-between font-mono-num text-[12px] leading-[16px] text-[var(--text-3)]">
                   <span>0 mm</span>
-                  <span>Rain gate: 15 mm</span>
+                  <span>{result?.gates.rain_gate_label ?? ""}</span>
                   <span>60 mm</span>
                 </div>
               </div>
@@ -342,7 +341,7 @@ export function Lab() {
                 />
                 <div className="flex justify-between font-mono-num text-[12px] leading-[16px] text-[var(--text-3)]">
                   <span>0% (shut)</span>
-                  <span>Drop gate: &lt;= 25%</span>
+                  <span>{result?.gates.drop_gate_label ?? ""}</span>
                   <span>150%</span>
                 </div>
               </div>
@@ -377,7 +376,7 @@ export function Lab() {
                 />
                 <div className="flex justify-between font-mono-num text-[12px] leading-[16px] text-[var(--text-3)]">
                   <span>0 days</span>
-                  <span>Eligibility gate: &gt;= 2 of 3 + yesterday</span>
+                  <span>{result?.gates.eligibility_gate_label ?? ""}</span>
                   <span>3 days</span>
                 </div>
               </div>
@@ -486,13 +485,13 @@ export function Lab() {
                 <div className="flex flex-col gap-1 border-t border-[var(--line)] pt-2">
                   <ReceiptLine label="Reason code" value={result.reason} />
                   <ReceiptLine
-                    label="Quorum gate (>= 60%)"
+                    label={result.gates.quorum_receipt_label}
                     value={`${Math.round(result.quorum_share * 100)}% (${
                       result.quorum_met ? "met" : "not met"
                     })`}
                   />
                   <ReceiptLine
-                    label="Rain gate (>= 15 mm)"
+                    label={result.gates.rain_receipt_label}
                     value={`${result.rain_mm} mm (${
                       result.rain_gate_met ? "met" : "not met"
                     })`}

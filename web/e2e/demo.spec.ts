@@ -1,5 +1,15 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const BACKUP_VIDEO_PATH = path.resolve(
+  __dirname,
+  "../test-results/demo-backup.webm"
+);
 
 async function expectNoSeriousOrCriticalAxeIssues(page: Page, label: string) {
   const results = await new AxeBuilder({ page }).analyze();
@@ -90,6 +100,13 @@ test.describe("Silent Claim offline E2E demo & accessibility", () => {
       page.getByRole("heading", { name: "PRIVACY NOTICE" })
     ).toBeVisible();
     await expectNoSeriousOrCriticalAxeIssues(page, "/privacy");
+
+    const video = page.video();
+    await page.close();
+    if (video) {
+      fs.mkdirSync(path.dirname(BACKUP_VIDEO_PATH), { recursive: true });
+      await video.saveAs(BACKUP_VIDEO_PATH);
+    }
   });
 
   test("declines consent via வேண்டாம் (No), files no claim for Selvi, and forms a 6-claim batch", async ({

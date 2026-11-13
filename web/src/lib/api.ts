@@ -316,6 +316,15 @@ export interface LabDecideRequest {
   regular_weekly_holiday: LabHolidayMode;
 }
 
+export interface LabGatesView {
+  quorum_gate_label: string;
+  quorum_receipt_label: string;
+  rain_gate_label: string;
+  rain_receipt_label: string;
+  drop_gate_label: string;
+  eligibility_gate_label: string;
+}
+
 export interface LabDecideResponse {
   decision: "file" | "ask" | "none";
   decision_label: string;
@@ -330,6 +339,7 @@ export interface LabDecideResponse {
   dropped: boolean;
   eligible: boolean;
   rules_version: string;
+  gates: LabGatesView;
 }
 
 export async function decideLabScenario(

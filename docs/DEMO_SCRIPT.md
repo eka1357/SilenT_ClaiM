@@ -12,12 +12,12 @@ Laptop on `/console`, a phone (or a second window) on `/merchant`. Rehearse with
 | 0:50 | "She sees exactly what we share, and with whom. One tap. No forms." | Point at the "What we share" line, then tap **ஆம், பதிவு செய்யுங்கள்** (Yes, file it). The pill shows "Claim filed" |
 | 0:56 | "The insurer gets evidence: her baseline, the street, the rain, her consent, and the rules version. A human approves the batch." | Open the evidence PDF for 3 s, then **Approve batch** |
 | 1:08 | "And Paytm gives her this month's fee back right now. This is a real refund on Paytm's staging gateway." | The receipt prints the refund line: ₹35, Live, with the refund ID |
-| 1:16 | "We tested the rules on 60 held-out simulated shop-weeks seeded with leaves, illness and QR switches. They filed [N] claims and [M] were right." | Point at the receipt line |
+| 1:16 | "We tested the rules on 60 held-out simulated shop-weeks seeded with leaves, illness and QR switches. They filed 18 claims and 17 were right." | Point at the receipt line |
 | 1:24 | "When the Soundbox goes silent, that is the claim." | Stop |
 
-If the staging keys never arrive or the refund fails, say instead: "The refund call is built and signed against Paytm's staging API; today it runs simulated, and it's labelled that way." Never call a simulated refund real.
+If the staging keys never arrive or the Paytm refund fails, keep `PAYTM_MODE=pending` and say instead: "The refund call is built and signed against Paytm's staging API; today it runs simulated, and it's labelled that way." Never call a simulated refund real.
 
-If anything fails live: say "We recorded this an hour ago", switch to the second running instance with `DEMO_OFFLINE=1` (its labels read Replay), and carry on. Never improvise numbers.
+If the network drops mid-demo: keep going; calls fall back to `Replay` on their own. If the API crashes: restart it with `DEMO_OFFLINE=1` and rerun the flood. If the browser crashes: reopen `/console` and press **Reset and run the flood**. Never improvise numbers.
 
 ## Hard questions (answer in two sentences)
 

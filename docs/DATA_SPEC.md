@@ -63,7 +63,7 @@ Daily rhythm: two peaks (08:00 to 10:00 and 18:00 to 21:00). Each shop has its o
 - `data/street.csv`: `shop_id, ts_hour, n_payments, amount_paise`
 - `data/shops.csv`: `shop_id, name, owner, category, lat, lon, plan_active, staging_order_id`
 - `data/eval_shopweeks.csv`: 200 rows. `case_id, shop_profile, scenario, true_label, expected_decision`, plus a path to its daily series in `data/eval/`
-- Eval scenario mix: 70 normal, 60 flood street, 20 leave (including 5 that start 1 to 3 days before a flood), 15 illness (a lone drop), 15 QR switch, 10 weekly holiday, 10 power cut (quorum met, no rain)
+- Eval scenario mix: 70 normal (`none`), 60 flood street (`file`), 20 leave (`ask`, including 5 that start 1 to 3 days before a flood), 15 illness (`ask`, a lone drop), 15 QR switch (`ask`), 10 weekly holiday (`none`, per D27: event day is the shop's recurring weekly closing day), 10 power cut (`ask`, quorum met, no rain)
 - `data/rain.json`: cached Open-Meteo response (the fixture used offline)
 
 ## Metrics

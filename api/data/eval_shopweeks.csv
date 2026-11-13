@@ -9,7 +9,7 @@ case_007,stationery,flood_street,flood_closure,file,tuning,eval/case_007.csv,202
 case_008,saree,normal,normal,none,tuning,eval/case_008.csv,2026-10-21,9,1,2.3
 case_009,grocery,flood_street,flood_closure,file,tuning,eval/case_009.csv,2026-10-21,9,7,27.0
 case_010,flowers,leave,leave,ask,tuning,eval/case_010.csv,2026-10-21,9,0,0.0
-case_011,tea,weekly_holiday,weekly_holiday,ask,tuning,eval/case_011.csv,2026-10-21,9,0,0.0
+case_011,tea,weekly_holiday,weekly_holiday,none,tuning,eval/case_011.csv,2026-10-21,9,0,0.0
 case_012,fruit,flood_street,flood_closure,file,tuning,eval/case_012.csv,2026-10-21,9,8,25.0
 case_013,tailor,qr_switch,qr_switch,ask,tuning,eval/case_013.csv,2026-10-21,9,8,27.7
 case_014,mobile_repair,qr_switch,qr_switch,ask,held_out,eval/case_014.csv,2026-10-21,9,0,0.0
@@ -21,7 +21,7 @@ case_019,grocery,flood_street,flood_closure,file,held_out,eval/case_019.csv,2026
 case_020,flowers,normal,normal,none,tuning,eval/case_020.csv,2026-10-21,9,0,5.7
 case_021,tea,normal,normal,none,tuning,eval/case_021.csv,2026-10-21,9,0,5.6
 case_022,fruit,normal,normal,none,tuning,eval/case_022.csv,2026-10-21,9,1,4.8
-case_023,tailor,weekly_holiday,weekly_holiday,ask,tuning,eval/case_023.csv,2026-10-21,9,0,0.0
+case_023,tailor,weekly_holiday,weekly_holiday,none,tuning,eval/case_023.csv,2026-10-21,9,0,0.0
 case_024,mobile_repair,illness,illness,ask,tuning,eval/case_024.csv,2026-10-21,9,0,0.5
 case_025,bakery,normal,normal,none,tuning,eval/case_025.csv,2026-10-21,9,0,5.4
 case_026,footwear,normal,normal,none,tuning,eval/case_026.csv,2026-10-21,9,0,5.1
@@ -69,16 +69,16 @@ case_067,stationery,power_cut,power_cut,ask,tuning,eval/case_067.csv,2026-10-21,
 case_068,saree,power_cut,power_cut,ask,held_out,eval/case_068.csv,2026-10-21,9,8,0.9
 case_069,grocery,flood_street,flood_closure,file,held_out,eval/case_069.csv,2026-10-21,9,8,36.5
 case_070,flowers,normal,normal,none,tuning,eval/case_070.csv,2026-10-21,9,0,1.0
-case_071,tea,weekly_holiday,weekly_holiday,ask,tuning,eval/case_071.csv,2026-10-21,9,0,0.0
+case_071,tea,weekly_holiday,weekly_holiday,none,tuning,eval/case_071.csv,2026-10-21,9,0,0.0
 case_072,fruit,leave,leave,ask,held_out,eval/case_072.csv,2026-10-21,9,0,0.0
 case_073,tailor,qr_switch,qr_switch,ask,tuning,eval/case_073.csv,2026-10-21,9,0,0.0
 case_074,mobile_repair,flood_street,flood_closure,file,tuning,eval/case_074.csv,2026-10-21,9,8,40.2
 case_075,bakery,flood_street,flood_closure,file,tuning,eval/case_075.csv,2026-10-21,9,8,33.8
 case_076,footwear,illness,illness,ask,tuning,eval/case_076.csv,2026-10-21,9,0,0.6
 case_077,stationery,power_cut,power_cut,ask,tuning,eval/case_077.csv,2026-10-21,9,8,2.0
-case_078,saree,weekly_holiday,weekly_holiday,ask,held_out,eval/case_078.csv,2026-10-21,9,0,0.0
+case_078,saree,weekly_holiday,weekly_holiday,none,held_out,eval/case_078.csv,2026-10-21,9,0,0.0
 case_079,grocery,normal,normal,none,tuning,eval/case_079.csv,2026-10-21,9,0,0.5
-case_080,flowers,weekly_holiday,weekly_holiday,ask,held_out,eval/case_080.csv,2026-10-21,9,0,0.0
+case_080,flowers,weekly_holiday,weekly_holiday,none,held_out,eval/case_080.csv,2026-10-21,9,0,0.0
 case_081,tea,illness,illness,ask,tuning,eval/case_081.csv,2026-10-21,9,0,0.7
 case_082,fruit,leave,leave,ask,tuning,eval/case_082.csv,2026-10-21,9,0,0.0
 case_083,tailor,illness,illness,ask,held_out,eval/case_083.csv,2026-10-21,9,0,2.5
@@ -117,7 +117,7 @@ case_115,bakery,illness,illness,ask,held_out,eval/case_115.csv,2026-10-21,9,0,3.
 case_116,footwear,flood_street,flood_closure,file,tuning,eval/case_116.csv,2026-10-21,9,7,29.7
 case_117,stationery,flood_street,flood_closure,file,tuning,eval/case_117.csv,2026-10-21,9,7,29.6
 case_118,saree,normal,normal,none,tuning,eval/case_118.csv,2026-10-21,9,1,2.0
-case_119,grocery,weekly_holiday,weekly_holiday,ask,tuning,eval/case_119.csv,2026-10-21,9,0,0.0
+case_119,grocery,weekly_holiday,weekly_holiday,none,tuning,eval/case_119.csv,2026-10-21,9,0,0.0
 case_120,flowers,flood_street,flood_closure,file,tuning,eval/case_120.csv,2026-10-21,9,8,24.0
 case_121,tea,flood_street,flood_closure,file,tuning,eval/case_121.csv,2026-10-21,9,7,21.0
 case_122,fruit,flood_street,flood_closure,file,held_out,eval/case_122.csv,2026-10-21,9,7,26.7
@@ -127,9 +127,9 @@ case_125,bakery,flood_street,flood_closure,file,tuning,eval/case_125.csv,2026-10
 case_126,footwear,flood_street,flood_closure,file,tuning,eval/case_126.csv,2026-10-21,9,7,35.3
 case_127,stationery,normal,normal,none,tuning,eval/case_127.csv,2026-10-21,9,0,1.9
 case_128,saree,normal,normal,none,tuning,eval/case_128.csv,2026-10-21,9,1,5.1
-case_129,grocery,weekly_holiday,weekly_holiday,ask,tuning,eval/case_129.csv,2026-10-21,9,0,0.0
+case_129,grocery,weekly_holiday,weekly_holiday,none,tuning,eval/case_129.csv,2026-10-21,9,0,0.0
 case_130,flowers,normal,normal,none,tuning,eval/case_130.csv,2026-10-21,9,0,3.0
-case_131,tea,weekly_holiday,weekly_holiday,ask,tuning,eval/case_131.csv,2026-10-21,9,0,0.0
+case_131,tea,weekly_holiday,weekly_holiday,none,tuning,eval/case_131.csv,2026-10-21,9,0,0.0
 case_132,fruit,flood_street,flood_closure,file,held_out,eval/case_132.csv,2026-10-21,9,8,30.2
 case_133,tailor,normal,normal,none,tuning,eval/case_133.csv,2026-10-21,9,0,3.9
 case_134,mobile_repair,flood_street,flood_closure,file,tuning,eval/case_134.csv,2026-10-21,9,7,33.6
@@ -150,7 +150,7 @@ case_148,saree,flood_street,flood_closure,file,tuning,eval/case_148.csv,2026-10-
 case_149,grocery,normal,normal,none,tuning,eval/case_149.csv,2026-10-21,9,0,0.3
 case_150,flowers,flood_street,flood_closure,file,held_out,eval/case_150.csv,2026-10-21,9,7,28.2
 case_151,tea,flood_street,flood_closure,file,tuning,eval/case_151.csv,2026-10-21,9,8,24.6
-case_152,fruit,weekly_holiday,weekly_holiday,ask,held_out,eval/case_152.csv,2026-10-21,9,0,0.0
+case_152,fruit,weekly_holiday,weekly_holiday,none,held_out,eval/case_152.csv,2026-10-21,9,0,0.0
 case_153,tailor,qr_switch,qr_switch,ask,tuning,eval/case_153.csv,2026-10-21,9,8,27.7
 case_154,mobile_repair,flood_street,flood_closure,file,held_out,eval/case_154.csv,2026-10-21,9,7,31.1
 case_155,bakery,power_cut,power_cut,ask,tuning,eval/case_155.csv,2026-10-21,9,8,1.4
@@ -198,4 +198,4 @@ case_196,footwear,qr_switch,qr_switch,ask,tuning,eval/case_196.csv,2026-10-21,9,
 case_197,stationery,normal,normal,none,held_out,eval/case_197.csv,2026-10-21,9,0,3.8
 case_198,saree,normal,normal,none,held_out,eval/case_198.csv,2026-10-21,9,0,3.3
 case_199,grocery,qr_switch,qr_switch,ask,held_out,eval/case_199.csv,2026-10-21,9,0,0.0
-case_200,flowers,weekly_holiday,weekly_holiday,ask,tuning,eval/case_200.csv,2026-10-21,9,0,0.0
+case_200,flowers,weekly_holiday,weekly_holiday,none,tuning,eval/case_200.csv,2026-10-21,9,0,0.0
