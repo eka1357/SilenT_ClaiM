@@ -494,6 +494,26 @@ def classify_reply(
     )
 
 
+def _fallback_evidence_summary(
+    *,
+    shop_name: str,
+    owner: str,
+    day_iso: str,
+    baseline_rs: float,
+    day_rs: float,
+    quorum_dropped: int,
+    quorum_total: int,
+    rain_mm: float,
+) -> str:
+    return (
+        f"On {day_iso}, {owner}'s {shop_name} recorded Rs. {day_rs:,.2f} in digital payments "
+        f"compared with a 28-day median baseline of Rs. {baseline_rs:,.2f}. "
+        f"With {quorum_dropped} of {quorum_total} shops on the street dropping simultaneously "
+        f"during {rain_mm:.1f} mm of recorded rainfall, the closure aligns with a street-wide "
+        "flood disruption (Replay)."
+    )
+
+
 def summarize_evidence(
     *,
     shop_name: str,
@@ -509,13 +529,26 @@ def summarize_evidence(
     settings: Settings | None = None,
     client: httpx.Client | None = None,
 ) -> str | None:
-    """Optionally generate a brief cosmetic English summary for an evidence PDF.
+    """Generate a brief cosmetic English summary for an evidence PDF.
 
-    In DEMO_OFFLINE=1 or on any error/timeout, returns None so PDF generation proceeds safely.
+    In DEMO_OFFLINE=1 or on any error/timeout, returns a deterministic replay summary so the
+    PDF always includes Section 3.
     """
     cfg = settings or get_settings()
+    baseline_rs = baseline_paise / 100.0
+    day_rs = day_income_paise / 100.0
+    fallback = _fallback_evidence_summary(
+        shop_name=shop_name,
+        owner=owner,
+        day_iso=day_iso,
+        baseline_rs=baseline_rs,
+        day_rs=day_rs,
+        quorum_dropped=quorum_dropped,
+        quorum_total=quorum_total,
+        rain_mm=rain_mm,
+    )
     if is_offline(cfg):
-        return None
+        return fallback
 
     provider = (cfg.llm_provider or "sarvam").strip().lower()
     api_key = (
@@ -524,10 +557,7 @@ def summarize_evidence(
         else cfg.llm_api_key.get_secret_value()
     )
     if not api_key:
-        return None
-
-    baseline_rs = baseline_paise / 100.0
-    day_rs = day_income_paise / 100.0
+        return fallback
     facts = (
         f"Shop: {shop_name} (owner {owner})\n"
         f"Event date: {day_iso}\n"
@@ -570,7 +600,7 @@ def summarize_evidence(
             text = str(
                 payload.get("choices", [{}])[0].get("message", {}).get("content", "")
             ).strip()
-            return text or None
+            return text or fallback
 
         if provider == "gemini":
             model_name = cfg.llm_model.strip() or DEFAULT_GEMINI_MODEL
@@ -593,7 +623,9 @@ def summarize_evidence(
             payload = resp.json()
             parts = payload.get("candidates", [{}])[0].get("content", {}).get("parts", [])
             text = "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
-            return text or None
+            return text or fallback
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
-        logger.warning("llm_summarize_evidence failed (%s); omitting summary", type(exc).__name__)
-    return None
+        logger.warning(
+            "llm_summarize_evidence failed (%s); using replay summary", type(exc).__name__
+        )
+    return fallback

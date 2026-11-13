@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     paytm_mid: str = ""
     paytm_merchant_key: SecretStr = Field(default=SecretStr(""))
     paytm_website: str = "WEBSTAGING"
+    paytm_demo_order_id: str = ""
 
     sarvam_api_key: SecretStr = Field(default=SecretStr(""))
 

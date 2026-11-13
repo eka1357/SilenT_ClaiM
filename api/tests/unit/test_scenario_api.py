@@ -82,7 +82,7 @@ def _extract_pdf_text_streams(pdf_bytes: bytes) -> str:
             except zlib.error:
                 pass
         cursor = end + len(b"endstream")
-    return "\n".join(chunks)
+    return "\n".join(chunks).replace(r"\(", "(").replace(r"\)", ")")
 
 
 def _safe_a85_decode(data: bytes) -> bytes | None:
@@ -213,8 +213,12 @@ def test_offline_oct21_checkpoint_end_to_end(tmp_path: Path) -> None:
         pdf_text = _extract_pdf_text_streams(pdf_resp.content)
         assert "Synthetic data for demonstration" in pdf_text
         assert RULES_VERSION in pdf_text
-        assert "Selvi" in pdf_text
-        assert "27.7 mm" in pdf_text
+        assert (
+            "Selvi's flower stall took Rs. 0 on 21 Oct 2026 against a usual Rs. 3,201: "
+            "9 of 12 shops on the street shut, 27.7 mm of rain."
+        ) in pdf_text
+        assert "Summary (written by AI from the numbers above; it sets no amount)" in pdf_text
+        assert "Cosmetic Note" not in pdf_text
 
         # SSE bus recorded the required events with monotonically increasing IDs.
         bus_events = client.app.state.container.bus.events  # type: ignore[attr-defined]

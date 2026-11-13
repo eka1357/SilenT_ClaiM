@@ -9,7 +9,7 @@ This adapts the common "before you launch" and "is your app secure" checklists t
 - [ ] **Keys.** `PAYTM_MODE=pending` until the staging keys arrive on finals day, then `staging`. No production keys on the laptop. The API's startup guard must refuse anything else.
 - [ ] **Fixtures.** `scripts/record_fixtures.py` has been run against the live services, and `DEMO_OFFLINE=1 uv run pytest tests/contract` passes with Wi-Fi off.
 - [ ] **Cold run (our beta test).** Someone who has not seen the project clones the repo, follows only README.md, and runs the demo. Fix whatever confused them.
-- [ ] **Personas (our demo accounts).** The 12 shops are seeded. On finals day, once keys arrive, make Selvi's ₹35 plan-fee payment on Paytm staging and put its order ID in `data/shops.csv`.
+- [ ] **Personas (our demo accounts).** The 12 shops are seeded. On finals day, once keys arrive, make Selvi's ₹35 plan-fee payment on Paytm staging and paste the order ID that `paytm_spike.py --create` prints into `PAYTM_DEMO_ORDER_ID` in `api/.env`.
 
 ## Morning of the event
 

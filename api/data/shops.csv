@@ -1,5 +1,5 @@
 shop_id,name,owner,category,lat,lon,plan_active,staging_order_id
-shop_01,Flower stall,Selvi,flowers,13.0401,80.2501,True,ORD-STG-SHOP-01
+shop_01,Flower stall,Selvi,flowers,13.0401,80.2501,True,
 shop_02,Tea stall,Kumar,tea,13.0402,80.2502,True,
 shop_03,Pharmacy,Ravi,pharmacy,13.0403,80.2503,True,
 shop_04,Fruit cart,Lakshmi,fruit,13.0404,80.2504,True,

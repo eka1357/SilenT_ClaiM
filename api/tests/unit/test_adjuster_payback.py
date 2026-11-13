@@ -27,6 +27,7 @@ def _make_settings(
     payback_enabled: bool = True,
     paytm_mid: str = "",
     paytm_merchant_key: str = "",
+    paytm_demo_order_id: str = "",
 ) -> Settings:
     return Settings(
         demo_mode=True,
@@ -34,6 +35,7 @@ def _make_settings(
         paytm_mode=paytm_mode,
         paytm_mid=paytm_mid,
         paytm_merchant_key=paytm_merchant_key,
+        paytm_demo_order_id=paytm_demo_order_id,
         paytm_base_url="https://securestage.paytmpayments.com",
         paytm_order_base_url="https://securegw-stage.paytmpayments.in",
         payback_enabled=payback_enabled,
@@ -284,6 +286,7 @@ async def test_case_12_refund_idempotency_never_sends_second_request(
         paytm_mode="staging",
         paytm_mid="STAGE_MID_123",
         paytm_merchant_key="0123456789abcdef",
+        paytm_demo_order_id="ORD-STG-SHOP-01",
     )
     app = _create_test_app(tmp_path, settings=settings)
     container = app.state.container
@@ -413,13 +416,14 @@ async def test_mixed_batch_staging_mode_one_live_order_and_six_simulated(
     ) as client:
         await _run_oct21_and_tap_selvi(app, client)
 
-        # Switch settings to PAYTM_MODE=staging (live HTTP transport) before approving
+        # Switch settings to PAYTM_MODE=staging with PAYTM_DEMO_ORDER_ID set for Selvi (shop_01)
         monkeypatch.setenv("DEMO_OFFLINE", "0")
         staging_settings = _make_settings(
             demo_offline=False,
             paytm_mode="staging",
             paytm_mid="STAGE_MID_123",
             paytm_merchant_key="0123456789abcdef",
+            paytm_demo_order_id="ORD-STG-SHOP-01",
         )
         container.settings_getter = lambda: staging_settings
         container.runtime.settings_getter = lambda: staging_settings
@@ -521,6 +525,7 @@ async def test_staging_polls_three_times_then_marks_pending_at_paytm_and_handles
         paytm_mode="staging",
         paytm_mid="STAGE_MID_123",
         paytm_merchant_key="0123456789abcdef",
+        paytm_demo_order_id="ORD-STG-SHOP-01",
     )
     app = _create_test_app(tmp_path, settings=settings)
     container = app.state.container

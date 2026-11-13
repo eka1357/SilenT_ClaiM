@@ -25,7 +25,7 @@ The rule at every checkpoint: the demo runs end to end, even if parts are still 
 
 ## Finale day (Sun 15)
 
-1. **Paytm keys first:** put the staging MID and key in `api/.env`, set `PAYTM_MODE=staging`, run `paytm_spike.py --probe`, then `--create`, pay ₹35 with the test credentials, then `--order-id <ORDER_ID>`. Record the Paytm fixtures. If the refund fails, keep `PAYTM_MODE=pending` and use the fallback line in DEMO_SCRIPT.md.
+1. **Paytm keys first:** put the staging MID and key in `api/.env`, set `PAYTM_MODE=staging`, run `paytm_spike.py --probe`, then `--create`, pay ₹35 with the test credentials, paste the order ID that `paytm_spike.py --create` prints into `PAYTM_DEMO_ORDER_ID` in `api/.env`, then `--order-id <ORDER_ID>`. Record the Paytm fixtures. If the refund fails, keep `PAYTM_MODE=pending` and use the fallback line in DEMO_SCRIPT.md.
 2. Run the full demo live once, then once with `DEMO_OFFLINE=1`.
 3. Ask a Tamil speaker at the venue to listen to the prompt and, if they're willing, record the four replies; swap them in only if there is time to re-run the tests.
 4. Re-record the backup video with the live refund.

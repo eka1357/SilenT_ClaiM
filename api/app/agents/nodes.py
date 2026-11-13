@@ -1125,6 +1125,8 @@ async def execute_claim_payback(
         refund_month = day_val.strftime("%Y-%m")
         shop_row = sess.get(Shop, shop_id)
         staging_order_id = (shop_row.staging_order_id or "").strip() if shop_row is not None else ""
+        if not staging_order_id and shop_id == "shop_01":
+            staging_order_id = (cfg.paytm_demo_order_id or "").strip()
 
         prior_refunds = list(
             sess.scalars(
