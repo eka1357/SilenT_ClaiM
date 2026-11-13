@@ -23,3 +23,5 @@ Short decision records. Add one before adding a dependency or changing a rule.
 | D17 | No accounts or logins | Fixed personas are enough for a demo; removes passwords, sessions, reset links and CSRF concerns | Auth for the adjuster |
 | D18 | Kill switches `PAYBACK_ENABLED` and `DEMO_OFFLINE`, spending caps, rate limits | The only real money-and-cost risks in a demo | Crash reporting, backups, email (not applicable; see PREFLIGHT.md) |
 | D19 | `numpy` and `pandas` for `gen_data.py`, `eval.py`, and CSV fixtures | Deterministic seeded (`2026`) Poisson/log-normal data generation and tabular evaluation | Hand-rolled CSV loops or heavier ML packages |
+| D20 | Eligibility also needs the day before the event to be normal, unless it is the shop's regular weekly holiday | The plain 2-of-3 rule contradicted TESTING case 4: a leave starting the day before the flood would have been filed. Found and fixed in Task A | Plain 2-of-3 rule |
+| D21 | Quote the eval as "of N claims filed, M were right" plus the missed-claim rate | Dividing wrong claims by all 60 cases (1.67%) understated the error: really 1 of 18 filed claims was wrong | False-claim rate over all cases |

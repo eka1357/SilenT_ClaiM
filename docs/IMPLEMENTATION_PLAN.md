@@ -13,7 +13,7 @@ Two phases. **Phase 0** is before the event: accounts, keys, spikes, data, rules
 | 0.3 | **Sarvam spike:** Tamil TTS of the prompt; STT on three recorded replies (yes / "I'm on leave this month" / "I moved to another QR") | Transcripts readable; a native speaker has checked the prompt line |
 | 0.4 | **Data:** `scripts/gen_data.py` as in DATA_SPEC.md | Seeded and repeatable; the flood day shows 9 of 12 dropped |
 | 0.5 | **Rules:** `detector/` + unit tests | All DATA_SPEC cases pass, including Meena (leave) and Kavya (QR switch) |
-| 0.6 | **Eval:** `scripts/eval.py` | Prints the held-out false-claim and missed-claim rates and the confusion matrix |
+| 0.6 | **Eval:** `scripts/eval.py` | Prints, for the held-out set: claims filed and right, the false-positive and missed-claim rates, the confusion matrix and every misclassified case |
 | 0.7 | **Fixtures:** `scripts/record_fixtures.py` saves real responses (rain, TTS wav, STT, classifier, Paytm) | `DEMO_OFFLINE=1 uv run pytest tests/contract` passes with no network |
 | 0.8 | **Scaffold:** web (Vite, Tailwind v4, shadcn init, tokens, fonts) and api (FastAPI skeleton, health, SSE echo) | `pnpm dev` and `uvicorn` both run; the console shows a heartbeat from SSE |
 | 0.9 | **Rehearse the pitch:** the 90 seconds in DEMO_SCRIPT.md, five times out loud with a timer | Under 90 s with no notes |

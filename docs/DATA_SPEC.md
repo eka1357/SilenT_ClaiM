@@ -12,7 +12,7 @@ All thresholds live in one file, `api/app/detector/config.py`, under `RULES_VERS
 | Drop | Day income below this share of the baseline | 30% |
 | Street quorum | Share of all the street's shops with enough history that dropped on the same day | 60% or more |
 | Rain gate | Open-Meteo daily `precipitation_sum` for the street's coordinates | 15 mm or more |
-| Eligibility | The shop traded normally (did not drop) on at least 2 of the 3 calendar days before the event. One weekly holiday still passes; a leave or a QR switch that started earlier does not. | 2 of 3 |
+| Eligibility | The shop traded normally (did not drop) on at least 2 of the 3 calendar days before the event, **and** the day just before the event was normal unless it is the shop's regular weekly holiday (it dropped on at least half of that weekday's earlier occurrences). A weekly holiday still passes; a leave or a QR switch that started before the event, even the day before, does not. | 2 of 3, plus the day before |
 | Plan-fee refund | One month's fee, refunded once per shop per calendar month | ₹35 (3,500 paise) |
 
 The rain gate is deliberately low. On 21 Oct 2026 the city reported more than 10 cm, but the Open-Meteo grid cell showed only 27.7 mm (45.4 mm over 20 and 21 Oct). Grid data understates street flooding, so a high gate would miss real events.
@@ -23,7 +23,7 @@ The rain gate is deliberately low. On 21 Oct 2026 the city reported more than 10
 |---|---|
 | Shop has under 14 trading days of history | `ask` |
 | Shop did not drop | `none` |
-| Shop dropped, not eligible (dropped on 2 or more of the 3 days before) | `ask` (reason `inactive_before_event`) |
+| Shop dropped, not eligible (see Eligibility) | `ask` (reason `inactive_before_event`) |
 | Shop dropped, street quorum met, rain gate met | `file` |
 | Shop dropped, quorum met, rain gate not met | `ask` (reason `no_rain_signal`, e.g. a strike or a power cut) |
 | Shop dropped, quorum not met | `ask` (reason `lone_drop`) |
@@ -67,6 +67,9 @@ Daily rhythm: two peaks (08:00 to 10:00 and 18:00 to 21:00). Each shop has its o
 
 ## Metrics
 
-- **False-claim rate** = cases decided `file` whose true label is not `flood_closure`, divided by all cases.
+- **Wrong-claim share** = filed claims whose true label is not `flood_closure`, divided by all filed claims. This is the number to quote: "of N claims filed, M were right".
+- **False-positive rate** = non-flood cases decided `file`, divided by all non-flood cases.
 - **Missed-claim rate** = true `flood_closure` cases not decided `file`, divided by true `flood_closure` cases.
-- Report both numbers and the confusion matrix. Never tune on the cases you report: split 140 for tuning and 60 held out, and report the held-out numbers.
+- Report all three, the confusion matrix, and every misclassified case with its scenario and reason. Never tune on the cases you report: split 140 for tuning and 60 held out, and report the held-out numbers. Once the held-out set has been looked at, the thresholds are frozen.
+
+Known limits from the first run (keep them; do not tune them away): a shop that switches to another QR on the flood day itself looks exactly like a closed shop, and a shop that keeps more than 30% of its usual sales during a flood is not filed.

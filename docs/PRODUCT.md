@@ -43,6 +43,7 @@ Note: we could not confirm that Health Saathi is still sold today. The product w
 
 **US2: Ask in Tamil, file on one tap.** As Selvi, I want to hear what happened and say yes once.
 - The merchant screen plays a real Sarvam Tamil voice prompt and shows the Tamil text with an English gloss.
+- The prompt text (to be checked by a native Tamil speaker before the demo): "மழையால் உங்கள் தெருவில் 12 கடைகளில் 9 மூடியிருந்தன. உங்கள் காப்பீட்டுக் கோரிக்கையை நான் பதிவு செய்யட்டுமா?" Gloss: "Nine of twelve shops on your street were shut by the rain. Shall I file your insurance claim?" Button: "ஆம், பதிவு செய்யுங்கள்" (Yes, file it).
 - Before the button, a "What we share" line says exactly what goes to the insurer (her shop's daily totals for 28 days, the street count and the rainfall), to whom and why, with a "Details" sheet. Consent means nothing if she can't see what she agrees to.
 - The "Yes, file it" button is at least 56 px tall, works by keyboard, and confirms within 300 ms.
 - After the tap, the claim status shows "Filed" and the forms counter reads 0.
@@ -51,6 +52,14 @@ Note: we could not confirm that Health Saathi is still sold today. The product w
 - A voice note saying "I'm on leave this month" is classified `leave`, and no claim is filed.
 - A shop that was already inactive for the 3 days before the event goes to Ask, not File.
 - A QR switch (payments moved to another provider) is classified `qr_switch` and sent to a human.
+- Test voice replies live in `api/samples/`, recorded by a native Tamil speaker in their own spoken words (5 to 10 seconds each). Until real recordings exist, stand-ins are made with a text-to-speech tool, preferably not Sarvam (so Sarvam STT is not tested on its own voice), and saved as `api/samples/tts_*` (mp3 or wav; convert to 16 kHz mono WAV before STT). Anything built from them is labelled "Simulated reply".
+
+| File | Meaning the speaker should say | Written Tamil guide | Expected label |
+|---|---|---|---|
+| `flood.wav` | Rainwater came into my shop; I couldn't open it. | மழைத் தண்ணீர் கடைக்குள் வந்துவிட்டது, கடையைத் திறக்க முடியவில்லை. | `flood_closure` |
+| `leave.wav` | I've gone to my hometown for the whole month; the shop is closed. | நான் இந்த மாதம் முழுவதும் ஊருக்குப் போயிருக்கிறேன், கடை மூடியிருக்கிறது. | `leave` |
+| `qr_switch.wav` | I'm using a different QR code now. | நான் இப்போது வேறு QR கோடு பயன்படுத்துகிறேன். | `qr_switch` |
+| `yes.wav` | Yes, please file it. | ஆமாம், பதிவு செய்யுங்கள். | consent (no label) |
 
 **US4: Evidence pack and batch approval.** As an adjuster, I want evidence I can trust and one action to approve.
 - Each claim gets a PDF with the shop's baseline vs event-day income, the street quorum, rainfall and its source, the merchant's consent timestamp, and the rule version.
@@ -61,9 +70,9 @@ Note: we could not confirm that Health Saathi is still sold today. The product w
 - The UI shows Paytm's refund status (Live) and an idempotent refund ID. Running it twice never refunds twice.
 
 **US6: Prove it works.** As a judge, I want a number, not a promise.
-- `scripts/eval.py` reports the false-claim rate and missed-claim rate on 200 labelled simulated shop-weeks.
-- The console shows these two numbers with "Simulated eval" beside them.
-- Targets: false-claim rate of 5% or less, missed-claim rate of 10% or less. Report the real numbers either way.
+- `scripts/eval.py` reports, on the 60 held-out simulated shop-weeks: how many claims were filed and how many were right, the false-positive rate, and the missed-claim rate.
+- The console shows "claims right" and "closures missed" with "Simulated eval" beside them.
+- Targets: at most 1 in 10 filed claims wrong, and a missed-claim rate of 10% or less. Report the real numbers either way.
 
 ## On-screen metrics
 

@@ -12,7 +12,7 @@ Laptop on `/console`, a phone (or a second window) on `/merchant`. Rehearse with
 | 0:50 | "She sees exactly what we share, and with whom. One tap. No forms." | Point at the "What we share" line, then tap **ஆம், பதிவு செய்யுங்கள்** (Yes, file it). The pill shows "Claim filed" |
 | 0:56 | "The insurer gets evidence: her baseline, the street, the rain, her consent, and the rules version. A human approves the batch." | Open the evidence PDF for 3 s, then **Approve batch** |
 | 1:08 | "And Paytm gives her this month's fee back right now. This is a real refund on Paytm's staging gateway." | The receipt prints the refund line: ₹35, Live, with the refund ID |
-| 1:16 | "On 200 simulated shop-weeks seeded with leaves, illness and QR switches, the false-claim rate is [X]%." | Point at the receipt line |
+| 1:16 | "We tested the rules on 60 held-out simulated shop-weeks seeded with leaves, illness and QR switches. They filed [N] claims and [M] were right." | Point at the receipt line |
 | 1:24 | "When the Soundbox goes silent, that is the claim." | Stop |
 
 If the staging keys never arrive or the refund fails, say instead: "The refund call is built and signed against Paytm's staging API; today it runs simulated, and it's labelled that way." Never call a simulated refund real.
@@ -30,6 +30,8 @@ If anything fails live: say "We recorded this an hour ago", switch to the second
 **"Would Paytm share this data with insurers?"** It doesn't need to share raw transactions. Paytm already distributes the insurance, and it sends the insurer only the evidence pack, with the merchant's consent.
 
 **"What is real and what is simulated?"** Real: the rainfall data, the Tamil voice, the classifier, the rules, the evidence PDF and the Paytm staging refund. Simulated and labelled: the shops' payment history, the insurer's intake and the claim payout.
+
+**"Where do the rules fail?"** Two places, both in our own eval. A shop that switches to another QR on the flood day itself looks like a closed shop, which is why every claim needs the merchant's consent and a human adjuster. A shop that keeps more than 30% of its sales during a flood isn't filed; in production it would get the same Tamil question.
 
 **"How does Paytm make money?"** Distribution income on cover that merchants renew because it pays, plus merchants keeping their payments and Soundbox on Paytm. Financial services distribution revenue was ₹912 crore last quarter, up 49%.
 

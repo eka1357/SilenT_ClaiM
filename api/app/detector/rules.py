@@ -172,12 +172,12 @@ def is_eligible_before_event(
 ) -> bool:
     """Check whether the shop was actively trading before event_day.
 
-    Rules from DATA_SPEC.md and TESTING.md:
-    1. The shop traded normally (did not drop) on at least 2 of the 3 calendar days
-       before the event.
-    2. One weekly holiday passes; however, if the drop occurred on the day immediately
-       before the event (event_day - 1) and that weekday is NOT the shop's recurring
-       weekly holiday, it is treated as a leave/closure starting before the flood.
+    Rules from DATA_SPEC.md:
+    The shop traded normally (did not drop) on at least 2 of the 3 calendar days
+    before the event, and the day just before the event (event_day - 1) was normal
+    unless it is the shop's regular weekly holiday (dropped on at least half of that
+    weekday's earlier occurrences). A weekly holiday still passes; a leave or a QR
+    switch that started before the event, even the day before, does not.
     """
     day_val = parse_day(event_day)
     history = normalize_shop_history(shop)
