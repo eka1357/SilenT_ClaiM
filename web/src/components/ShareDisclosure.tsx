@@ -20,23 +20,26 @@ export function ShareDisclosure({ className }: ShareDisclosureProps) {
     <>
       <div
         className={cn(
-          "flex flex-col gap-1 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-2.5 text-[14px] leading-[20px] text-[var(--text-2)]",
+          "flex flex-col gap-0.5 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-2 text-[14px] leading-[18px] text-[var(--text-2)]",
           className
         )}
       >
-        <div className="flex items-baseline justify-between gap-2">
+        <p lang="ta" className="font-tamil-sm text-[var(--text-1)]">
+          உங்கள் கடையின் 28 நாள் வருமானம், தெருவில் மூடிய கடைகளின் எண்ணிக்கை, மழை அளவு மட்டுமே காப்பீட்டு நிறுவனத்துக்கு அனுப்பப்படும்.
+        </p>
+        <div className="flex items-baseline justify-between gap-2 pt-0.5">
           <span className="font-semibold text-[var(--text-1)]">
             What we share with the insurer:
           </span>
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="shrink-0 text-[14px] leading-[20px] font-semibold text-[var(--rust)] underline underline-offset-2 cursor-pointer"
+            className="shrink-0 text-[14px] leading-[18px] font-semibold text-[var(--rust)] underline underline-offset-2 cursor-pointer"
           >
             Details
           </button>
         </div>
-        <p className="text-[14px] leading-[20px] text-[var(--text-2)]">
+        <p className="text-[14px] leading-[18px] text-[var(--text-2)]">
           Your shop&apos;s daily totals for 28 days, the street closure count (9 of 12), and the Open-Meteo rainfall reading, sent to the insurer queue to verify your flood-interruption claim.
         </p>
       </div>
@@ -61,7 +64,7 @@ export function ShareDisclosure({ className }: ShareDisclosureProps) {
                 <li>Event-day payment total and drop percentage.</li>
                 <li>Street closure quorum (9 of 12 shops shut on Panagal Park Road).</li>
                 <li>Open-Meteo daily rainfall reading (27.7 mm) and source label.</li>
-                <li>Your consent timestamp, deterministic rule version (1.0.0), and a one-sentence summary generated from these numbers.</li>
+                <li>Your consent timestamp, deterministic rule version (2026.11-a), and a one-sentence summary generated from these numbers.</li>
               </ul>
             </div>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
 import { Link } from "react-router-dom";
 import { ConsentButton } from "@/components/ConsentButton";
 import { CheckGlyph } from "@/components/glyphs/CheckGlyph";
@@ -54,9 +55,13 @@ function buildSilentWavBlob(): Blob {
 }
 
 export function Merchant() {
+  const reducedMotion = useReducedMotion();
   const [selvi, setSelvi] = useState<ShopView | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiOffline, setApiOffline] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingCheck, setConfirmingCheck] = useState(false);
   const [recording, setRecording] = useState(false);
   const [declined, setDeclined] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -74,14 +79,16 @@ export function Merchant() {
         streetRes.shops.find((s) => s.shop_id === SELVI_SHOP_ID) ?? null;
       setSelvi(found);
       setHealth(healthRes);
+      setApiOffline(false);
       if (found?.ask?.status === "declined") {
         setDeclined(true);
       } else if (found?.ask?.status === "pending") {
         setDeclined(false);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to load merchant view";
-      setErrorMsg(msg);
+    } catch {
+      setApiOffline(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -115,6 +122,18 @@ export function Merchant() {
       onRefundStatus: () => {
         void refreshSelvi();
       },
+      onIntegrationHealth: (evt) => {
+        setHealth((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            integrations: {
+              ...prev.integrations,
+              [evt.name]: evt.mode,
+            },
+          };
+        });
+      },
     });
     return () => {
       disconnect();
@@ -126,8 +145,14 @@ export function Merchant() {
     if (!askId) return;
     setSubmitting(true);
     setErrorMsg(null);
+    if (consent && !reducedMotion) {
+      setConfirmingCheck(true);
+    }
     try {
       await submitConsent(askId, consent);
+      if (consent && !reducedMotion) {
+        await new Promise((resolve) => window.setTimeout(resolve, 420));
+      }
       if (!consent) {
         setDeclined(true);
       }
@@ -136,6 +161,7 @@ export function Merchant() {
       const msg = err instanceof Error ? err.message : "Failed to submit consent";
       setErrorMsg(msg);
     } finally {
+      setConfirmingCheck(false);
       setSubmitting(false);
     }
   };
@@ -215,35 +241,38 @@ export function Merchant() {
     }
   };
 
-  const hasClaim = Boolean(selvi?.claim);
+  const hasClaim = Boolean(selvi?.claim) && !confirmingCheck;
   const hasRefund = Boolean(selvi?.claim?.refund);
   const hasPendingAsk =
-    !hasClaim &&
+    (!selvi?.claim || confirmingCheck) &&
     !declined &&
-    Boolean(selvi?.ask && selvi.ask.status === "pending");
+    Boolean(selvi?.ask && (selvi.ask.status === "pending" || confirmingCheck));
 
-  const pillState: PhonePillState = hasClaim
-    ? "Claim filed"
-    : hasPendingAsk
-      ? "Asking"
-      : "Listening";
+  const pillState: PhonePillState =
+    hasClaim || confirmingCheck
+      ? "Claim filed"
+      : hasPendingAsk
+        ? "Asking"
+        : "Listening";
 
-  const sarvamEntry = health?.integrations?.sarvam;
+  const sarvamEntry =
+    health?.integrations?.sarvam ?? health?.integrations?.sarvam_tts;
   const sarvamMode =
     typeof sarvamEntry === "string" ? sarvamEntry : sarvamEntry?.mode;
   const sarvamLive = sarvamMode === "live";
+  const sarvamDown = sarvamMode === "down";
 
   const baselineRupees = formatRupeesFromPaise(selvi?.baseline_paise ?? 320100);
   const todayRupees = formatRupeesFromPaise(selvi?.today_income_paise ?? 0);
 
   return (
-    <div className="min-h-screen bg-[var(--ink)] px-4 py-1.5 text-[var(--text-dark-1)] max-[480px]:p-0">
-      <div className="mx-auto mb-1.5 flex max-w-[390px] items-center justify-between max-[480px]:hidden">
+    <div className="min-h-screen bg-[var(--ink)] px-4 py-1 text-[var(--text-dark-1)] max-[480px]:p-0">
+      <div className="mx-auto mb-1 flex max-w-[390px] items-center justify-between max-[480px]:hidden">
         <Link
           to="/console"
           className="text-[14px] leading-[20px] font-medium text-[var(--marigold)] underline underline-offset-2"
         >
-          Back to /console
+          Console
         </Link>
         <Link
           to="/adjuster"
@@ -254,8 +283,25 @@ export function Merchant() {
       </div>
 
       <PhoneFrame>
-        <div className="flex flex-1 flex-col justify-between gap-2.5">
-          <div className="flex flex-col gap-2.5">
+        <div className="flex flex-1 flex-col justify-between gap-2">
+          <div className="flex flex-col gap-1.5">
+            {apiOffline ? (
+              <div
+                role="alert"
+                className="flex items-center justify-between rounded-[4px] border border-[var(--danger-paper)] bg-[var(--card)] px-3 py-1.5 text-[14px] leading-[20px] font-semibold text-[var(--danger-paper)]"
+              >
+                <span>API offline</span>
+                <StateLabel kind="error" text="Down" surface="paper" />
+              </div>
+            ) : null}
+
+            {sarvamDown ? (
+              <div className="flex items-center justify-between rounded-[4px] border border-[var(--danger-paper)] bg-[var(--card)] px-3 py-1.5 text-[14px] leading-[20px] text-[var(--danger-paper)]">
+                <span>Sarvam speech service</span>
+                <StateLabel kind="error" text="Down" surface="paper" />
+              </div>
+            ) : null}
+
             <PhoneStatusPill
               state={pillState}
               shopName={`${selvi?.name ?? "Flower stall"} · ${selvi?.owner ?? "Selvi"}`}
@@ -264,16 +310,27 @@ export function Merchant() {
             {errorMsg ? (
               <div
                 role="alert"
-                className="rounded-[4px] border border-[var(--danger-paper)] bg-[var(--card)] p-3 text-[14px] leading-[20px] text-[var(--danger-paper)]"
+                className="rounded-[4px] border border-[var(--danger-paper)] bg-[var(--card)] p-2.5 text-[14px] leading-[20px] text-[var(--danger-paper)]"
               >
                 {errorMsg}
               </div>
             ) : null}
 
+            {loading && !selvi ? (
+              <div
+                aria-label="Loading merchant screen"
+                className="flex flex-col gap-2"
+              >
+                <div className="h-[140px] w-full rounded-[6px] border border-[var(--line)] bg-[var(--paper-2)]" />
+                <div className="h-[88px] w-full rounded-[6px] border border-[var(--line)] bg-[var(--paper-2)]" />
+                <div className="h-[56px] w-full rounded-[6px] border border-[var(--line)] bg-[var(--paper-2)]" />
+              </div>
+            ) : null}
+
             {/* Screen 1: Listening */}
-            {!hasPendingAsk && !hasClaim ? (
-              <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4">
-                <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5">
+            {!loading && !hasPendingAsk && !hasClaim ? (
+              <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5">
+                <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
                   <span className="text-[12px] leading-[16px] font-semibold uppercase tracking-[0.4px] text-[var(--text-3)]">
                     Panagal Park Road · 21 Oct 2026
                   </span>
@@ -286,7 +343,7 @@ export function Merchant() {
                   <ReceiptLine label="Monthly cover fee" value="₹35" />
                 </div>
 
-                <p className="border-t border-[var(--line)] pt-3 text-[14px] leading-[20px] text-[var(--text-2)]">
+                <p className="border-t border-[var(--line)] pt-2.5 text-[14px] leading-[20px] text-[var(--text-2)]">
                   {declined
                     ? "You chose not to file a claim for today."
                     : "When your Soundbox goes silent and most of Panagal Park Road shuts in heavy rain, Silent Claim asks one question in Tamil and files your claim on one tap."}
@@ -312,11 +369,12 @@ export function Merchant() {
 
                 <ConsentButton
                   disabled={submitting}
+                  confirmed={confirmingCheck}
                   onConfirm={() => void handleConsent(true)}
                   onDecline={() => void handleConsent(false)}
                 />
 
-                <div className="flex items-center justify-between rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-3.5 py-2.5">
+                <div className="flex items-center justify-between rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-3 py-1.5">
                   <span className="text-[14px] leading-[20px] text-[var(--text-2)]">
                     Need to explain in your own words?
                   </span>
@@ -324,7 +382,7 @@ export function Merchant() {
                     type="button"
                     disabled={submitting}
                     onClick={() => void handleVoiceToggle()}
-                    className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--paper)] px-3 py-1.5 text-[14px] leading-[20px] font-medium text-[var(--text-1)] hover:border-[var(--rust)] disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1 text-[14px] leading-[20px] font-medium text-[var(--text-1)] hover:border-[var(--rust)] disabled:opacity-50 cursor-pointer"
                   >
                     <MicGlyph className="h-4 w-4 text-[var(--rust)]" />
                     <span>
@@ -337,9 +395,9 @@ export function Merchant() {
 
             {/* Screen 3 & 4: Filed + Money back */}
             {hasClaim && selvi?.claim ? (
-              <div className="flex flex-col gap-3.5">
-                <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--ok-paper)]/40 bg-[var(--card)] p-4">
-                  <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2.5 rounded-[6px] border border-[var(--ok-paper)]/40 bg-[var(--card)] p-3.5">
+                  <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5">
                     <div className="flex items-center gap-2">
                       <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-[var(--ok-paper)] text-[var(--paper)]">
                         <CheckGlyph className="h-4 w-4" />
@@ -351,7 +409,7 @@ export function Merchant() {
                     <StateLabel kind="filed" text="Filed" surface="paper" />
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1.5">
                     <ReceiptLine label="Forms filled" value={0} />
                     <ReceiptLine label="Usual daily total" value={baselineRupees} />
                     <ReceiptLine label="Event-day total" value="₹0 today" />
@@ -359,9 +417,9 @@ export function Merchant() {
                     <ReceiptLine label="Rainfall" value="27.7 mm" />
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-[var(--line)] pt-3">
-                    <span className="font-figures text-[14px] leading-[20px] text-[var(--text-2)]">
-                      {selvi.claim.id}
+                  <div className="flex items-center justify-between border-t border-[var(--line)] pt-2.5">
+                    <span className="text-[14px] leading-[20px] text-[var(--text-2)]">
+                      Evidence pack ready
                     </span>
                     <a
                       href={selvi.claim.evidence_url}
@@ -377,8 +435,8 @@ export function Merchant() {
 
                 {/* Screen 4: Money back receipt */}
                 {hasRefund && selvi.claim.refund ? (
-                  <div className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4">
-                    <div className="flex items-center justify-between border-b border-[var(--line)] pb-2.5">
+                  <div className="flex flex-col gap-2.5 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5">
+                    <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
                       <div className="flex items-center gap-2">
                         <ReceiptGlyph className="h-4 w-4 text-[var(--rust)]" />
                         <span className="font-sign-sm text-[var(--text-1)]">
@@ -398,7 +456,7 @@ export function Merchant() {
                       />
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                       <ReceiptLine
                         label="Plan fee refunded"
                         value={formatRupeesFromPaise(
@@ -416,7 +474,7 @@ export function Merchant() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5 text-[14px] leading-[20px] text-[var(--text-2)]">
+                  <div className="rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3 text-[14px] leading-[20px] text-[var(--text-2)]">
                     Your evidence pack is in the adjuster batch. As soon as the adjuster approves the batch, this month&apos;s ₹35 plan fee is refunded automatically.
                   </div>
                 )}
@@ -424,8 +482,8 @@ export function Merchant() {
             ) : null}
           </div>
 
-          <footer className="flex items-center justify-between border-t border-[var(--line)] pt-2 text-[14px] leading-[20px] text-[var(--text-3)]">
-            <span>Rule v1.0.0</span>
+          <footer className="flex items-center justify-between border-t border-[var(--line)] pt-1.5 text-[14px] leading-[20px] text-[var(--text-3)]">
+            <span>Rules 2026.11-a</span>
             <Link
               to="/privacy"
               className="font-medium text-[var(--rust)] underline underline-offset-2"

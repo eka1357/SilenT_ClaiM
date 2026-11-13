@@ -209,6 +209,44 @@ async def submit_ask_consent(ask_id: str, request: Request) -> dict[str, Any]:
     }
 
 
+@asks_router.post("/{ask_id}/decline")
+async def decline_ask_consent(ask_id: str, request: Request) -> dict[str, Any]:
+    """Decline a paused consent ask thread, log 'consent declined', file no claim, and form batch."""
+    container = get_container(request)
+    with container.db.session() as sess:
+        ask = sess.get(Ask, ask_id)
+        if ask is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Ask '{ask_id}' not found.",
+            )
+        if ask.ask_kind != "consent":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only consent asks can be declined with this action.",
+            )
+        if ask.status != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Ask '{ask_id}' was already answered ({ask.status}).",
+            )
+
+    result = await asyncio.to_thread(
+        container.graph_runner.resume_decline,
+        ask,
+        answered_at=now_ist(),
+        simulated_label=None,
+    )
+    with container.db.session() as sess:
+        updated_ask = sess.get(Ask, ask_id)
+
+    return {
+        "status": result.get("terminal_status", "declined"),
+        "ask": _serialize_ask(updated_ask) if updated_ask is not None else {"id": ask_id},
+        "claim": None,
+    }
+
+
 @asks_router.post("/{ask_id}/voice")
 async def submit_ask_voice(
     ask_id: str,
@@ -313,4 +351,5 @@ def download_evidence_pdf(claim_id: str, request: Request) -> Response:
         path=pdf_path,
         media_type="application/pdf",
         filename=f"{claim_id}.pdf",
+        content_disposition_type="inline",
     )

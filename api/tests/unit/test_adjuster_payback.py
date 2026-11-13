@@ -17,7 +17,7 @@ from app.config import Settings
 from app.detector.config import PLAN_FEE_PAISE, RULES_VERSION
 from app.integrations.paytm import PENDING_SIMULATED_LABEL, build_refund_id
 from app.main import create_app
-from app.models import AuditLog, Claim, Detection, Refund
+from app.models import Ask, AuditLog, Claim, Detection, Refund
 
 
 def _make_settings(
@@ -653,3 +653,48 @@ async def test_metrics_endpoint_returns_receipt_and_eval_numbers(
         assert eval_block["claims_right"] == 17
         assert eval_block["closures_missed"] == 1
         assert eval_block["total_closures"] == 18
+
+
+@pytest.mark.anyio
+async def test_decline_consent_logs_and_forms_batch_without_shop(
+    tmp_path: Path,
+) -> None:
+    """Declining Selvi's ask logs 'consent declined' in audit_log, files no claim for Selvi, and forms a 6-claim batch."""
+    app = _create_test_app(tmp_path)
+    container = app.state.container
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        run_res = await client.post(
+            "/api/scenario/run",
+            json={"day": "2026-10-21", "speed": 0},
+        )
+        assert run_res.status_code == 200
+
+        with container.db.session() as sess:
+            selvi_ask = sess.scalar(select(Ask).where(Ask.shop_id == "shop_01"))
+            assert selvi_ask is not None
+            selvi_ask_id = selvi_ask.id
+
+        decline_res = await client.post(f"/api/asks/{selvi_ask_id}/decline")
+        assert decline_res.status_code == 200
+        decline_body = decline_res.json()
+        assert decline_body["status"] == "declined"
+        assert decline_body["ask"]["status"] == "declined"
+        assert decline_body["claim"] is None
+
+        batch_res = await client.get("/api/batches/current")
+        assert batch_res.status_code == 200
+        batch_data = batch_res.json()
+        assert batch_data["batch"] is not None
+        assert batch_data["batch"]["id"] == "batch_20261021"
+        assert batch_data["batch"]["claims_count"] == 6
+        assert all(c["shop_id"] != "shop_01" for c in batch_data["claims"])
+
+    with container.db.session() as sess:
+        selvi_claim = sess.scalar(select(Claim).where(Claim.shop_id == "shop_01"))
+        assert selvi_claim is None
+        audit_actions = [a.action for a in sess.scalars(select(AuditLog))]
+        assert "consent declined" in audit_actions

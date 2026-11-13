@@ -9,6 +9,7 @@
 
   /* Paper (merchant, adjuster, evidence, receipt) */
   --paper: #F6F2EA;
+  --paper-2: #EDE7DA;
   --card: #FFFDF8;
   --line: #D9D0BE;
 
@@ -108,6 +109,13 @@
   font-weight: 500;
   font-size: 17px;
   line-height: 27px;
+}
+
+.font-tamil-sm {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 26px;
 }
 
 .font-tamil-prompt {

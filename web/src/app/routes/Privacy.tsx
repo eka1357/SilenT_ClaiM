@@ -15,7 +15,7 @@ export function Privacy() {
               to="/console"
               className="font-semibold text-[var(--rust)] underline underline-offset-2"
             >
-              Back to /console
+              Console
             </Link>
             <Link
               to="/merchant"
@@ -59,7 +59,7 @@ export function Privacy() {
             <li>The event-day payment total and drop percentage.</li>
             <li>The street closure quorum (for example, 9 of 12 shops shut on Panagal Park Road).</li>
             <li>Daily rainfall in millimetres from Open-Meteo and its source label.</li>
-            <li>The merchant&apos;s consent timestamp in <code className="font-figures text-[14px]">Asia/Kolkata</code>, the deterministic rule version (<code className="font-figures text-[14px]">1.0.0</code>), and a short summary sentence written by the configured LLM from those numbers (the LLM sets no eligibility or payout amount).</li>
+            <li>The merchant&apos;s consent timestamp in <code className="font-figures text-[14px]">Asia/Kolkata</code>, the deterministic rule version (<code className="font-figures text-[14px]">2026.11-a</code>), and a short summary sentence written by the configured LLM from those numbers (the LLM sets no eligibility or payout amount).</li>
           </ul>
         </section>
 

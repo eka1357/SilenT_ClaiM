@@ -48,7 +48,7 @@ def build_claim_graph(
     builder.add_conditional_edges(
         "ask",
         _route_after_ask,
-        {"file": "file", "classify": "classify"},
+        {"file": "file", "close": "close", "classify": "classify"},
     )
     builder.add_conditional_edges(
         "classify",
@@ -118,6 +118,24 @@ class ClaimGraphRunner:
         config = {"configurable": {"thread_id": ask.thread_id}}
         resume_payload = {
             "reply_type": "tap",
+            "answered_at": ts.isoformat(),
+            "simulated_label": simulated_label,
+        }
+        with self._lock:
+            return self._graph.invoke(Command(resume=resume_payload), config=config)
+
+    def resume_decline(
+        self,
+        ask: Ask,
+        *,
+        answered_at: datetime | None = None,
+        simulated_label: str | None = None,
+    ) -> dict[str, Any]:
+        """Resume a paused consent Ask thread with a decline and transition to `close`."""
+        ts = answered_at or now_ist()
+        config = {"configurable": {"thread_id": ask.thread_id}}
+        resume_payload = {
+            "reply_type": "decline",
             "answered_at": ts.isoformat(),
             "simulated_label": simulated_label,
         }

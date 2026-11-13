@@ -18,7 +18,9 @@ import {
   type BatchClaimItem,
   type BatchInfo,
   getCurrentBatch,
+  getHealth,
   getMetrics,
+  type HealthResponse,
   type RefundMetricItem,
 } from "@/lib/api";
 import { formatClockTimeIST, formatRupeesFromPaise } from "@/lib/format";
@@ -45,17 +47,23 @@ export function Adjuster() {
   const [claims, setClaims] = useState<BatchClaimItem[]>([]);
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [refunds, setRefunds] = useState<RefundMetricItem[]>([]);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiOffline, setApiOffline] = useState(false);
   const [approving, setApproving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const refreshAdjuster = useCallback(async () => {
     try {
-      const [batchRes, metricsRes] = await Promise.all([
+      const [batchRes, metricsRes, healthRes] = await Promise.all([
         getCurrentBatch(),
         getMetrics(),
+        getHealth(),
       ]);
       setBatch(batchRes.batch);
       setClaims(batchRes.claims);
+      setHealth(healthRes);
+      setApiOffline(false);
       if (batchRes.claims.length > 0) {
         setSelectedClaimId((prev) =>
           prev && batchRes.claims.some((c) => c.id === prev)
@@ -66,9 +74,10 @@ export function Adjuster() {
       if (metricsRes.refunds.items.length > 0) {
         setRefunds(metricsRes.refunds.items);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load adjuster batch";
-      setErrorMsg(msg);
+    } catch {
+      setApiOffline(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -151,12 +160,16 @@ export function Adjuster() {
   );
   const isApproved = batch?.status === "approved";
   const countLabel = claims.length > 0 ? claims.length : 7;
+  const paytmEntry = health?.integrations?.paytm;
+  const paytmMode =
+    typeof paytmEntry === "string" ? paytmEntry : paytmEntry?.mode;
+  const paytmDown = paytmMode === "down";
 
   return (
-    <div className="min-h-screen bg-[var(--paper)] p-6 text-[var(--text-1)]">
-      <div className="mx-auto flex max-w-[1040px] flex-col gap-6">
+    <div className="min-h-screen bg-[var(--paper)] p-4 text-[var(--text-1)]">
+      <div className="mx-auto flex max-w-[1360px] flex-col gap-3">
         {/* Header */}
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] pb-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-2.5">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="font-sign text-[var(--text-1)]">ADJUSTER DESK</h1>
             <StateLabel
@@ -167,7 +180,18 @@ export function Adjuster() {
             {batch ? (
               <StateLabel
                 kind={isApproved ? "filed" : "replay"}
-                text={isApproved ? `Batch ${batch.id} approved` : `Batch ${batch.id} ready`}
+                text={
+                  isApproved
+                    ? "Batch for 21 Oct: approved"
+                    : "Batch for 21 Oct: ready"
+                }
+                surface="paper"
+              />
+            ) : null}
+            {paytmDown ? (
+              <StateLabel
+                kind="error"
+                text="Paytm: Down"
                 surface="paper"
               />
             ) : null}
@@ -178,7 +202,7 @@ export function Adjuster() {
               to="/console"
               className="text-[14px] leading-[20px] font-semibold text-[var(--rust)] underline underline-offset-2"
             >
-              Back to /console
+              Console
             </Link>
             <Link
               to="/merchant"
@@ -205,6 +229,16 @@ export function Adjuster() {
           </div>
         </header>
 
+        {apiOffline ? (
+          <div
+            role="alert"
+            className="flex items-center justify-between rounded-[4px] border border-[var(--danger-paper)] bg-[var(--card)] px-4 py-2.5 text-[14px] leading-[20px] font-semibold text-[var(--danger-paper)]"
+          >
+            <span>API offline</span>
+            <StateLabel kind="error" text="Down" surface="paper" />
+          </div>
+        ) : null}
+
         {errorMsg ? (
           <div
             role="alert"
@@ -217,15 +251,15 @@ export function Adjuster() {
         {/* Batch Claims Table */}
         <section
           aria-label="Batch claims table"
-          className="rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4"
+          className="rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3"
         >
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-baseline gap-3">
               <h2 className="font-heading text-[var(--text-1)]">
                 Filed Claims in Batch
               </h2>
               <p className="text-[14px] leading-[20px] text-[var(--text-2)]">
-                Deterministic eligibility and payout caps from rules.py. Select any row to inspect its PDF evidence pack below.
+                Eligibility and payout caps come from fixed, tested rules (2026.11-a). No AI decides money.
               </p>
             </div>
             <span className="font-figures text-[14px] leading-[20px] text-[var(--text-2)]">
@@ -233,7 +267,16 @@ export function Adjuster() {
             </span>
           </div>
 
-          {claims.length === 0 ? (
+          {loading && claims.length === 0 ? (
+            <div
+              aria-label="Loading batch table"
+              className="flex flex-col gap-2"
+            >
+              <div className="h-[36px] w-full rounded-[4px] bg-[var(--paper-2)]" />
+              <div className="h-[44px] w-full rounded-[4px] bg-[var(--paper-2)]" />
+              <div className="h-[44px] w-full rounded-[4px] bg-[var(--paper-2)]" />
+            </div>
+          ) : claims.length === 0 ? (
             <div className="rounded-[4px] border border-[var(--line)] bg-[var(--paper)] p-6 text-center text-[14px] leading-[20px] text-[var(--text-2)]">
               Batch is not ready yet. Run the flood on{" "}
               <Link to="/console" className="font-semibold text-[var(--rust)] underline">
@@ -275,10 +318,10 @@ export function Adjuster() {
                         isSelected && "bg-[var(--paper)]"
                       )}
                     >
-                      <TableCell className="font-semibold">
+                      <TableCell className="py-1.5 font-semibold">
                         {claim.shop_name}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1.5">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span>{claim.owner}</span>
                           {claim.simulated_label ? (
@@ -296,23 +339,23 @@ export function Adjuster() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="font-figures">
-                        <div>{dropPct}</div>
-                        <div className="text-[12px] leading-[16px] text-[var(--text-3)]">
-                          {formatRupeesFromPaise(claim.baseline_paise)} -&gt;{" "}
-                          {formatRupeesFromPaise(claim.day_income_paise)}
-                        </div>
+                      <TableCell className="py-1.5 font-figures">
+                        <span>{dropPct}</span>{" "}
+                        <span className="text-[12px] leading-[16px] text-[var(--text-3)]">
+                          ({formatRupeesFromPaise(claim.baseline_paise)} -&gt;{" "}
+                          {formatRupeesFromPaise(claim.day_income_paise)})
+                        </span>
                       </TableCell>
-                      <TableCell className="font-figures">
+                      <TableCell className="py-1.5 font-figures">
                         {formatQuorum(claim.quorum_share)}
                       </TableCell>
-                      <TableCell className="font-figures">
+                      <TableCell className="py-1.5 font-figures">
                         {claim.rain_mm.toFixed(1)} mm
                       </TableCell>
-                      <TableCell className="font-figures">
+                      <TableCell className="py-1.5 font-figures">
                         {formatClockTimeIST(claim.consent_at)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1.5">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -336,7 +379,7 @@ export function Adjuster() {
                           </a>
                         </div>
                       </TableCell>
-                      <TableCell className="font-figures">
+                      <TableCell className="py-1.5 font-figures">
                         {claim.rules_version}
                       </TableCell>
                     </TableRow>
@@ -348,29 +391,29 @@ export function Adjuster() {
         </section>
 
         {/* Bottom Grid: Evidence PDF Preview Pane + Live Plan-Fee Refunds */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px]">
           {/* Evidence PDF Preview Pane */}
           <section
             aria-label="Evidence PDF preview"
-            className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4"
+            className="flex flex-col gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] pb-3">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] pb-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <h2 className="font-heading text-[var(--text-1)]">
                   Evidence Pack Preview
                 </h2>
-                <p className="text-[14px] leading-[20px] text-[var(--text-2)]">
+                <span className="text-[14px] leading-[20px] text-[var(--text-2)]">
                   {selectedClaim
                     ? `${selectedClaim.shop_name} (${selectedClaim.owner}) · ${selectedClaim.id}`
                     : "Select a claim row above to preview its evidence PDF."}
-                </p>
+                </span>
               </div>
               {selectedClaim ? (
                 <a
                   href={selectedClaim.evidence_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--paper)] px-3 py-1.5 text-[14px] leading-[20px] font-semibold text-[var(--rust)]"
+                  className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--paper)] px-2.5 py-1 text-[14px] leading-[20px] font-semibold text-[var(--rust)]"
                 >
                   <span>Open PDF</span>
                   <OpenExternalGlyph className="h-4 w-4" />
@@ -379,19 +422,11 @@ export function Adjuster() {
             </div>
 
             {selectedClaim ? (
-              <>
-                <div className="rounded-[4px] border border-[var(--line)] bg-[var(--paper)] p-3 text-[14px] leading-[20px] text-[var(--text-2)]">
-                  <span className="font-semibold text-[var(--text-1)]">
-                    Summary (written by AI from the numbers above; it sets no amount):
-                  </span>{" "}
-                  {selectedClaim.summary_text}
-                </div>
-                <iframe
-                  title={`Evidence PDF for ${selectedClaim.shop_name}`}
-                  src={selectedClaim.evidence_url}
-                  className="h-[460px] w-full rounded-[4px] border border-[var(--line)] bg-[var(--paper)]"
-                />
-              </>
+              <iframe
+                title={`Evidence PDF for ${selectedClaim.shop_name}`}
+                src={`${selectedClaim.evidence_url}#toolbar=0&navpanes=0&view=FitH`}
+                className="h-[430px] w-full rounded-[4px] border border-[var(--line)] bg-[var(--paper)]"
+              />
             ) : (
               <div className="flex h-[320px] items-center justify-center rounded-[4px] border border-[var(--line)] bg-[var(--paper)] text-[14px] leading-[20px] text-[var(--text-3)]">
                 No claim selected.
@@ -402,7 +437,7 @@ export function Adjuster() {
           {/* Plan-Fee Refunds Stream */}
           <section
             aria-label="Plan-fee refunds"
-            className="flex flex-col gap-3 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-4"
+            className="flex flex-col gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3"
           >
             <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
               <div className="flex items-center gap-2">

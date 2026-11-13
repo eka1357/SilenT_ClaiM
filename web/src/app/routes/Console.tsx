@@ -37,6 +37,22 @@ function extractMode(
   return typeof entry === "string" ? entry : entry.mode;
 }
 
+function resolveIntegrationMode(
+  integrations: Record<string, IntegrationStatusItem | IntegrationMode> | undefined,
+  key: string
+): IntegrationMode | undefined {
+  if (!integrations) return undefined;
+  if (key === "sarvam") {
+    const direct = extractMode(integrations.sarvam);
+    if (direct) return direct;
+    const tts = extractMode(integrations.sarvam_tts);
+    const stt = extractMode(integrations.sarvam_stt);
+    if (tts === "down" || stt === "down") return "down";
+    return tts ?? stt;
+  }
+  return extractMode(integrations[key]);
+}
+
 function mapModeToKind(mode: IntegrationMode | undefined): StateLabelKind {
   if (mode === "live") return "live";
   if (mode === "replay") return "replay";
@@ -49,6 +65,11 @@ function mapModeToText(
   mode: IntegrationMode | undefined,
   paytmMode: string
 ): string {
+  if (mode === "down") {
+    const title =
+      INTEGRATION_LABELS.find((item) => item.key === key)?.title ?? key;
+    return `${title}: Down`;
+  }
   if (key === "paytm" && (mode === "simulated" || paytmMode === "pending")) {
     return "Paytm: Simulated (keys pending)";
   }
@@ -59,9 +80,7 @@ function mapModeToText(
       ? "Live"
       : mode === "replay"
         ? "Replay"
-        : mode === "down"
-          ? "Unavailable"
-          : "Simulated";
+        : "Simulated";
   return `${title}: ${suffix}`;
 }
 
@@ -193,6 +212,8 @@ export function Console() {
   const [steps, setSteps] = useState<RawStepRecord[]>([]);
   const [refunds, setRefunds] = useState<ReceiptRefundItem[]>([]);
   const [clockTs, setClockTs] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiOffline, setApiOffline] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
@@ -210,6 +231,8 @@ export function Console() {
       setStreetData(streetRes);
       setMetrics(metricsRes);
       setHealth(healthRes);
+      setApiOffline(false);
+      setErrorBanner(null);
 
       if (streetRes.clock.current_hour) {
         setClockTs(streetRes.clock.current_hour);
@@ -232,8 +255,11 @@ export function Console() {
         setRefunds(metricsRes.refunds.items);
       }
     } catch (err) {
+      setApiOffline(true);
       const msg = err instanceof Error ? err.message : "Failed to load console state";
       setErrorBanner(msg);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -398,7 +424,7 @@ export function Console() {
     [shops]
   );
 
-  const rainLive = extractMode(health?.integrations?.weather) === "live";
+  const rainLive = resolveIntegrationMode(health?.integrations, "weather") === "live";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[var(--ink)] text-[var(--text-dark-1)] xl:h-screen xl:overflow-hidden">
@@ -412,6 +438,9 @@ export function Console() {
           >
             {formatClockTimeIST(clockTs)}
           </div>
+          <span className="font-figures text-[14px] leading-[20px] text-[var(--text-dark-2)]">
+            Rules 2026.11-a
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -420,7 +449,7 @@ export function Console() {
             className="flex flex-wrap items-center gap-2"
           >
             {INTEGRATION_LABELS.map(({ key }) => {
-              const mode = extractMode(health?.integrations?.[key]);
+              const mode = resolveIntegrationMode(health?.integrations, key);
               const paytmMode = health?.paytm_mode ?? "pending";
               return (
                 <StateLabel
@@ -445,12 +474,15 @@ export function Console() {
         </div>
       </header>
 
-      {errorBanner ? (
+      {apiOffline || errorBanner ? (
         <div
           role="alert"
-          className="border-b border-[var(--danger)]/40 bg-[var(--ink-2)] px-6 py-2 text-[14px] leading-[20px] text-[var(--danger)]"
+          className="flex items-center justify-between border-b border-[var(--danger)]/40 bg-[var(--ink-2)] px-6 py-2 text-[14px] leading-[20px] text-[var(--danger)]"
         >
-          {errorBanner}
+          <span className="font-semibold">
+            {apiOffline ? `API offline${errorBanner ? `: ${errorBanner}` : ""}` : errorBanner}
+          </span>
+          <StateLabel kind="error" text="Down" />
         </div>
       ) : null}
 
@@ -465,9 +497,16 @@ export function Console() {
           >
             {/* Top row: Shops 1-6 */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              {topRowShops.map((shop) => (
-                <Shopfront key={shop.shop_id} shop={shop} />
-              ))}
+              {loading && topRowShops.length === 0
+                ? Array.from({ length: 6 }).map((_, idx) => (
+                    <div
+                      key={`skel-top-${idx}`}
+                      className="h-[126px] w-full rounded-[6px] border border-[var(--line-dark)] bg-[var(--ink-3)]"
+                    />
+                  ))
+                : topRowShops.map((shop) => (
+                    <Shopfront key={shop.shop_id} shop={shop} />
+                  ))}
             </div>
 
             {/* RoadBand */}
@@ -479,13 +518,21 @@ export function Console() {
               rainLive={Boolean(rainLive)}
               shuttersDown={shuttersDownCount}
               totalShops={shops.length || 12}
+              isReplaying={isRunningClock}
             />
 
             {/* Bottom row: Shops 7-12 */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              {bottomRowShops.map((shop) => (
-                <Shopfront key={shop.shop_id} shop={shop} />
-              ))}
+              {loading && bottomRowShops.length === 0
+                ? Array.from({ length: 6 }).map((_, idx) => (
+                    <div
+                      key={`skel-bot-${idx}`}
+                      className="h-[126px] w-full rounded-[6px] border border-[var(--line-dark)] bg-[var(--ink-3)]"
+                    />
+                  ))
+                : bottomRowShops.map((shop) => (
+                    <Shopfront key={shop.shop_id} shop={shop} />
+                  ))}
             </div>
           </section>
 

@@ -48,12 +48,12 @@ export function Shopfront({ shop, className }: ShopfrontProps) {
         className
       )}
     >
-      {/* Top category & takings line (always visible above shutter) */}
-      <div className="relative z-20 flex h-[18px] shrink-0 items-center justify-between gap-1">
-        <span className="truncate text-[12px] leading-[16px] font-medium uppercase tracking-[0.3px] text-[var(--text-dark-2)]">
+      {/* Top category & takings line (always visible above shutter; long categories wrap) */}
+      <div className="relative z-20 flex min-h-[22px] shrink-0 items-start justify-between gap-1">
+        <span className="text-[12px] leading-[13px] font-medium uppercase tracking-[0.3px] text-[var(--text-dark-2)]">
           {shop.category.replace(/_/g, " ")}
         </span>
-        <span className="shrink-0 font-figures text-[14px] leading-[18px] text-[var(--text-dark-1)]">
+        <span className="shrink-0 font-figures text-[14px] leading-[16px] text-[var(--text-dark-1)]">
           {takingsLabel}
         </span>
       </div>

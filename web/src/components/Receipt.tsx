@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { Link } from "react-router-dom";
 import { OpenExternalGlyph } from "@/components/glyphs/OpenExternalGlyph";
 import { ReceiptGlyph } from "@/components/glyphs/ReceiptGlyph";
@@ -26,6 +28,47 @@ export interface ReceiptProps {
   className?: string;
 }
 
+function AnimatedRefundAmount({
+  amountPaise,
+  reducedMotion,
+}: {
+  amountPaise: number;
+  reducedMotion: boolean;
+}) {
+  const targetRupees = Math.round(amountPaise / 100);
+  const [displayRupees, setDisplayRupees] = useState<number>(
+    reducedMotion ? targetRupees : 0
+  );
+
+  useEffect(() => {
+    if (reducedMotion || targetRupees <= 0) {
+      setDisplayRupees(targetRupees);
+      return;
+    }
+    setDisplayRupees(0);
+    const durationMs = 450;
+    const startTs = performance.now();
+    let rafId = 0;
+
+    const step = (now: number) => {
+      const elapsed = now - startTs;
+      const progress = Math.min(1, elapsed / durationMs);
+      setDisplayRupees(Math.round(progress * targetRupees));
+      if (progress < 1) {
+        rafId = window.requestAnimationFrame(step);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [targetRupees, reducedMotion]);
+
+  if (amountPaise % 100 !== 0) {
+    return <>{formatRupeesFromPaise(amountPaise)}</>;
+  }
+  return <>₹{displayRupees}</>;
+}
+
 export function Receipt({
   metrics,
   batchId,
@@ -35,6 +78,7 @@ export function Receipt({
   shops,
   className,
 }: ReceiptProps) {
+  const reducedMotion = Boolean(useReducedMotion());
   const shopMap = new Map<string, ShopView>();
   for (const s of shops) {
     shopMap.set(s.shop_id, s);
@@ -101,7 +145,9 @@ export function Receipt({
               className="flex items-center justify-between gap-2 rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 font-figures text-[14px] leading-[20px] text-[var(--text-1)] hover:border-[var(--rust)]"
             >
               <span>
-                Batch of {batchCount} {batchStatus === "approved" ? "approved" : "ready"}: open adjuster view
+                {batchStatus === "approved"
+                  ? "Batch for 21 Oct: approved"
+                  : `Batch for 21 Oct: ready (${batchCount})`}
               </span>
               <OpenExternalGlyph className="h-4 w-4 shrink-0 text-[var(--rust)]" />
             </Link>
@@ -156,16 +202,24 @@ export function Receipt({
                   const ownerLabel = shop
                     ? shop.owner
                     : (item.shop_id ?? item.claim_id);
-                  const amountStr = formatRupeesFromPaise(item.amount_paise);
                   const isSimulated = item.label.toLowerCase().includes("simulated");
                   return (
-                    <div
+                    <motion.div
                       key={item.refund_id}
+                      initial={reducedMotion ? false : { opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={
+                        reducedMotion ? { duration: 0 } : { duration: 0.2 }
+                      }
                       className="flex flex-col gap-0.5 rounded-[4px] border border-[var(--line)] bg-[var(--card)] px-2 py-1 font-figures text-[14px] leading-[18px] text-[var(--text-1)]"
                     >
                       <div className="flex items-center justify-between gap-1.5">
                         <span className="font-semibold">
-                          {amountStr} plan fee -&gt; {ownerLabel}
+                          <AnimatedRefundAmount
+                            amountPaise={item.amount_paise}
+                            reducedMotion={reducedMotion}
+                          />{" "}
+                          plan fee -&gt; {ownerLabel}
                         </span>
                         <StateLabel
                           kind={
@@ -182,7 +236,7 @@ export function Receipt({
                       <div className="text-[12px] leading-[16px] text-[var(--text-3)]">
                         {item.refund_id}
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>

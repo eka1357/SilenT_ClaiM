@@ -38,7 +38,7 @@ async function launchBrowser() {
   for (const channel of ["msedge", "chrome", undefined]) {
     try {
       return await chromium.launch({
-        headless: true,
+        headless: false,
         ...(channel ? { channel } : {}),
       });
     } catch {
@@ -140,6 +140,13 @@ async function main() {
 
     await page.setViewportSize({ width: 360, height: 740 });
     await sleep(300);
+    const mobileBox = await consentBtn.boundingBox();
+    console.log("Mobile 360x740 consent button box:", JSON.stringify(mobileBox));
+    if (!mobileBox || mobileBox.y + mobileBox.height > 740) {
+      throw new Error(
+        `Consent button is not visible without scrolling at 360x740: ${JSON.stringify(mobileBox)}`
+      );
+    }
     await page.screenshot({ path: MERCHANT_MOBILE_PNG, fullPage: false });
     console.log(`Saved screenshot to ${MERCHANT_MOBILE_PNG}`);
 
@@ -164,11 +171,14 @@ async function main() {
     await page.waitForFunction(
       () => {
         const text = (document.body.textContent || "").toLowerCase();
-        return text.includes("7 of 7") && text.includes("batch approved (7)");
+        return (
+          text.includes("7 of 7") &&
+          text.includes("batch for 21 oct: approved")
+        );
       },
       { timeout: 20000 }
     );
-    await sleep(400);
+    await sleep(1200);
     await page.screenshot({ path: ADJUSTER_PNG, fullPage: false });
     console.log(`Saved screenshot to ${ADJUSTER_PNG}`);
 
@@ -179,7 +189,7 @@ async function main() {
         const text = (document.body.textContent || "").toLowerCase();
         return (
           text.includes("7 processed") &&
-          text.includes("batch of 7 approved") &&
+          text.includes("batch for 21 oct: approved") &&
           !text.includes("(0 steps)")
         );
       },

@@ -27,6 +27,22 @@ cd web && pnpm i && pnpm dev
 
 Offline demo (no network needed): set `DEMO_OFFLINE=1` in `api/.env` and restart. The UI then shows "Replay" labels.
 
+## Phone demo (same Wi-Fi or hotspot)
+
+To open Selvi's `/merchant` screen on your phone while running `/console` and `/adjuster` on your laptop:
+
+1. Connect your laptop and phone to the same Wi-Fi network (or your phone's hotspot).
+2. Start the API on the laptop:
+   ```bash
+   cd api && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+3. Start the Vite dev server with `--host` enabled (default in `pnpm dev`):
+   ```bash
+   cd web && pnpm dev
+   ```
+4. Note the `Network: http://<LAN-IP>:5173/` URL printed by Vite (or add `http://<LAN-IP>:5173` to `WEB_ORIGIN` in `api/.env`; private LAN origins are also allowed automatically when `DEMO_MODE=1`).
+5. On your phone browser, open `http://<LAN-IP>:5173/merchant`. All `/api/*` and SSE requests are proxied through Vite to the laptop's FastAPI server.
+
 Tests: `cd api && uv run pytest -q` · Eval: `uv run python scripts/eval.py` · E2E: `cd web && pnpm test:e2e`.
 
 ## Docs

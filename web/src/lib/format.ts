@@ -5,13 +5,20 @@ export type ShopStatusText =
   | "Shutter down"
   | "Asked"
   | "Filed"
-  | "Closed: on leave";
+  | "Closed: on leave"
+  | "Closed: declined";
 
 export function resolveShopStatusText(shop: ShopView): ShopStatusText {
   if (shop.claim) {
     return "Filed";
   }
   if (shop.ask) {
+    if (
+      shop.ask.status === "declined" ||
+      shop.ask.cause_label === "consent_declined"
+    ) {
+      return "Closed: declined";
+    }
     if (
       shop.ask.cause_label === "leave" ||
       shop.ask.status === "closed"

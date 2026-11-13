@@ -38,16 +38,11 @@ export function PhoneStatusPill({
       transition={{ duration: 0.2 }}
       aria-live="polite"
       className={cn(
-        "flex items-center justify-between gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-3 py-2",
+        "flex items-center justify-between gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5",
         className
       )}
     >
-      <div className="flex flex-col">
-        <span className="text-[12px] leading-[16px] font-medium uppercase tracking-[0.4px] text-[var(--text-3)]">
-          Income Protection Cover
-        </span>
-        <span className="font-heading text-[var(--text-1)]">{shopName}</span>
-      </div>
+      <span className="font-heading text-[var(--text-1)]">{shopName}</span>
       <motion.div layout key={state}>
         <StateLabel kind={kindMap[state]} text={state} surface="paper" />
       </motion.div>

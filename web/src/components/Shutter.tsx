@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export interface ShutterProps {
@@ -7,14 +7,20 @@ export interface ShutterProps {
 }
 
 export function Shutter({ isDown, className }: ShutterProps) {
+  const reducedMotion = useReducedMotion();
+
   return (
     <motion.div
       initial={false}
-      animate={{ height: isDown ? "58%" : "0%" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      animate={{ height: isDown ? "54%" : "0%" }}
+      transition={
+        reducedMotion
+          ? { duration: 0 }
+          : { duration: 0.55, ease: [0.22, 1, 0.36, 1] }
+      }
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute inset-x-0 top-[24px] z-10 flex flex-col justify-between overflow-hidden bg-[var(--ink)]",
+        "pointer-events-none absolute inset-x-0 top-[28px] z-10 flex flex-col justify-between overflow-hidden bg-[var(--ink)]",
         isDown ? "border-y-2 border-[var(--line-dark)]" : "border-y-0",
         className
       )}

@@ -12,6 +12,7 @@ export interface RoadBandProps {
   rainLive: boolean;
   shuttersDown: number;
   totalShops: number;
+  isReplaying?: boolean;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export function RoadBand({
   rainLive,
   shuttersDown,
   totalShops,
+  isReplaying = false,
   className,
 }: RoadBandProps) {
   const formattedDay = formatDayHuman(dayIso);
@@ -31,6 +33,8 @@ export function RoadBand({
   const cleanStreetName = streetName.replace(/\s*\(Simulated\)\s*$/i, "");
   const rawSource = rainSource && rainSource.length > 0 ? rainSource : "Open-Meteo";
   const sourceDisplay = rawSource.replace(/\s*\((Replay|Live)\)\s*$/i, "");
+  const quorumMet = totalShops > 0 && shuttersDown / totalShops >= 0.6;
+  const showRain = !isReplaying || quorumMet;
 
   return (
     <div
@@ -53,14 +57,16 @@ export function RoadBand({
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-1.5 text-[14px] leading-[20px] text-[var(--text-dark-2)]">
-          <RainDropGlyph className="h-4 w-4 text-[var(--live)]" />
-          <span className="font-figures text-[var(--text-dark-1)]">{rainDisplay}</span>
-          <span className="text-[14px] leading-[20px] text-[var(--text-dark-3)]">
-            ({sourceDisplay})
-          </span>
-          <StateLabel kind={rainLive ? "live" : "replay"} />
-        </div>
+        {showRain ? (
+          <div className="flex items-center gap-1.5 text-[14px] leading-[20px] text-[var(--text-dark-2)]">
+            <RainDropGlyph className="h-4 w-4 text-[var(--live)]" />
+            <span className="font-figures text-[var(--text-dark-1)]">{rainDisplay}</span>
+            <span className="text-[14px] leading-[20px] text-[var(--text-dark-3)]">
+              ({sourceDisplay})
+            </span>
+            <StateLabel kind={rainLive ? "live" : "replay"} />
+          </div>
+        ) : null}
 
         <div className="flex items-center gap-1.5 text-[14px] leading-[20px] text-[var(--text-dark-1)]">
           <ShutterGlyph className="h-4 w-4 text-[var(--marigold)]" />

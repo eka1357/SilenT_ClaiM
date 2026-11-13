@@ -193,8 +193,13 @@ class ScenarioRunner:
 
     def _load_day_hours(
         self, day_val: date
-    ) -> tuple[list[str], list[datetime], dict[tuple[str, datetime], tuple[int, int]]]:
-        """Load shop IDs, sorted IST hourly timestamps, and payment counts for `day_val`."""
+    ) -> tuple[
+        list[str],
+        list[datetime],
+        dict[tuple[str, datetime], tuple[int, int]],
+        dict[str, set[int]],
+    ]:
+        """Load shop IDs, sorted IST hourly timestamps, payment counts, and normal trading hours."""
         day_start = datetime(day_val.year, day_val.month, day_val.day, tzinfo=IST)
         day_end = day_start + timedelta(days=1)
 
@@ -225,7 +230,38 @@ class ScenarioRunner:
                 hour_set.add(ts_ist)
                 hourly_map[(sid, ts_ist)] = (int(n_pay), int(amt))
 
-        return shop_ids, sorted(hour_set), hourly_map
+            hist_stmt = select(
+                PaymentHourly.shop_id,
+                PaymentHourly.ts_hour,
+                PaymentHourly.n_payments,
+            ).where(
+                PaymentHourly.shop_id.in_(shop_ids),
+                PaymentHourly.ts_hour < day_start,
+            )
+            active_days_by_shop: dict[str, set[date]] = {sid: set() for sid in shop_ids}
+            hour_hits_by_shop: dict[str, dict[int, int]] = {
+                sid: defaultdict(int) for sid in shop_ids
+            }
+            for sid, ts_hour, n_pay in sess.execute(hist_stmt):
+                if int(n_pay) > 0:
+                    ts_ist = to_ist(ts_hour)
+                    active_days_by_shop[sid].add(ts_ist.date())
+                    hour_hits_by_shop[sid][ts_ist.hour] += 1
+
+            normal_hours: dict[str, set[int]] = {}
+            for sid in shop_ids:
+                n_days = len(active_days_by_shop[sid])
+                if n_days < 2:
+                    normal_hours[sid] = set(range(8, 22))
+                    continue
+                hrs = {
+                    hr
+                    for hr, hits in hour_hits_by_shop[sid].items()
+                    if (hits / n_days) >= 0.50
+                }
+                normal_hours[sid] = hrs if hrs else set(range(8, 22))
+
+        return shop_ids, sorted(hour_set), hourly_map, normal_hours
 
     async def _execute_day(
         self,
@@ -234,9 +270,17 @@ class ScenarioRunner:
         speed: float,
         run_personas_inline: bool,
     ) -> dict[str, Any]:
-        shop_ids, hours_ist, hourly_map = await asyncio.to_thread(self._load_day_hours, day_val)
-        if not self.shop_statuses:
-            self.shop_statuses = {sid: "trading" for sid in shop_ids}
+        shop_ids, hours_ist, hourly_map, normal_hours = await asyncio.to_thread(
+            self._load_day_hours, day_val
+        )
+        self.shop_statuses = {sid: "trading" for sid in shop_ids}
+
+        last_active_hour: dict[str, datetime | None] = {sid: None for sid in shop_ids}
+        for ts_hour in hours_ist:
+            for sid in shop_ids:
+                n_pay, amt = hourly_map.get((sid, ts_hour), (0, 0))
+                if n_pay > 0 and amt > 0:
+                    last_active_hour[sid] = ts_hour
 
         step_delay = 0.0 if speed <= 0 else (60.0 / speed)
         prev_display: dict[str, str] = {}
@@ -248,8 +292,18 @@ class ScenarioRunner:
             self._bus().publish("clock.tick", {"ts": ts_hour.isoformat()})
 
             for sid in shop_ids:
-                n_pay, amt = hourly_map.get((sid, ts_hour), (0, 0))
-                display_status = "trading" if (n_pay > 0 and amt > 0) else "quiet"
+                norm_hrs = normal_hours.get(sid, set(range(8, 22)))
+                first_norm_hr = min(norm_hrs) if norm_hrs else 8
+                last_norm_hr = max(norm_hrs) if norm_hrs else 21
+                last_act = last_active_hour.get(sid)
+
+                if last_act is None:
+                    display_status = "quiet" if ts_hour.hour >= first_norm_hr else "trading"
+                elif ts_hour <= last_act or last_act.hour >= min(last_norm_hr, 20):
+                    display_status = "trading"
+                else:
+                    display_status = "quiet" if ts_hour.hour in norm_hrs else "trading"
+
                 self.shop_statuses[sid] = display_status
                 if prev_display.get(sid) != display_status:
                     prev_display[sid] = display_status

@@ -66,6 +66,11 @@ def create_app(
     application.add_middleware(
         CORSMiddleware,
         allow_origins=_parse_cors_origins(cfg.web_origin),
+        allow_origin_regex=(
+            r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$"
+            if cfg.demo_mode
+            else None
+        ),
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],

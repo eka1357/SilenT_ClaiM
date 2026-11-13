@@ -61,7 +61,7 @@ const SAMPLE_SHOPS: ShopView[] = [
       rain_source: "Open-Meteo",
       decision: "file",
       reason: "rain_and_quorum",
-      rules_version: "1.0.0",
+      rules_version: "2026.11-a",
     },
     ask: {
       id: "ask_20261021_shop_01",
@@ -230,7 +230,7 @@ const SAMPLE_METRICS: MetricsResponse = {
   },
   eval: {
     label: "Simulated eval",
-    rules_version: "1.0.0",
+    rules_version: "2026.11-a",
     split: "held_out",
     total_cases: 60,
     claims_filed: 18,

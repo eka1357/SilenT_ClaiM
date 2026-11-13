@@ -571,6 +571,53 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
                 "trace": [*state.trace, "ask"],
             }
 
+        if reply_type == "decline":
+            with runtime.db.session() as sess:
+                ask_obj = sess.get(Ask, ask_id)
+                if ask_obj is not None:
+                    ask_obj.reply_type = "decline"
+                    ask_obj.status = "declined"
+                    ask_obj.answered_at = answered_at_dt
+                    ask_obj.simulated_label = simulated_label
+                sess.add(
+                    AuditLog(
+                        actor="merchant",
+                        action="consent declined",
+                        payload={
+                            "ask_id": ask_id,
+                            "shop_id": state.shop_id,
+                            "simulated_label": simulated_label,
+                        },
+                    )
+                )
+
+            runtime.bus.publish(
+                "ask.answered",
+                {
+                    "ask_id": ask_id,
+                    "reply_type": "decline",
+                    "simulated_label": simulated_label,
+                    "live": simulated_label is None,
+                    "replay": simulated_label is not None,
+                },
+            )
+            return {
+                "ask": {
+                    "ask_id": ask_id,
+                    "thread_id": thread_id,
+                    "ask_kind": ask_kind,
+                    "prompt_text_ta": prompt_text_ta,
+                    "prompt_audio_path": prompt_audio_path,
+                    "reply_type": "decline",
+                    "cause_label": "consent_declined",
+                    "simulated_label": simulated_label,
+                    "answered_at": answered_at_dt.isoformat(),
+                },
+                "errors": errors,
+                "live_flags": {**state.live_flags, "tts": tts_live},
+                "trace": [*state.trace, "ask"],
+            }
+
         return {
             "ask": {
                 "ask_id": ask_id,
@@ -890,11 +937,18 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
         }
 
     def close_ask(state: ClaimState) -> dict[str, Any]:
+        cfg = runtime.settings_getter()
         ask_id = str(state.ask["ask_id"])
+        reply_type = str(state.ask.get("reply_type") or "")
+        ask_kind = str(state.ask.get("ask_kind") or "")
         cause_label = str(state.ask.get("cause_label") or "leave")
+        day_val = date.fromisoformat(state.day)
+        new_batch_id: str | None = None
+        batch_claim_count: int = 0
+
         with runtime.db.session() as sess:
             ask_row = sess.get(Ask, ask_id)
-            if ask_row is not None:
+            if ask_row is not None and reply_type != "decline":
                 ask_row.status = "closed"
             sess.add(
                 AuditLog(
@@ -907,6 +961,15 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
                     },
                 )
             )
+            sess.flush()
+            if ask_kind == "consent":
+                new_batch_id, batch_claim_count = maybe_open_batch_for_day(
+                    sess=sess,
+                    day_val=day_val,
+                    day_iso=state.day,
+                    latest_claim=None,
+                )
+
         runtime.bus.publish(
             "agent.step",
             {
@@ -916,9 +979,28 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
                 "live": bool(state.live_flags.get("llm", False)),
             },
         )
+        if new_batch_id is not None:
+            runtime.bus.publish(
+                "batch.ready",
+                {
+                    "batch_id": new_batch_id,
+                    "n": batch_claim_count,
+                    "live": True,
+                    "replay": is_offline(cfg),
+                },
+            )
+            runtime.bus.publish(
+                "agent.step",
+                {
+                    "node": "batch",
+                    "status": "ok",
+                    "detail": f"Batch {new_batch_id} ready ({batch_claim_count} claims)",
+                    "live": True,
+                },
+            )
         return {
             "trace": [*state.trace, "close"],
-            "terminal_status": "closed",
+            "terminal_status": "declined" if reply_type == "decline" else "closed",
         }
 
     def human_review(state: ClaimState) -> dict[str, Any]:
@@ -971,8 +1053,11 @@ def _route_after_confirm(state: ClaimState) -> str:
 
 
 def _route_after_ask(state: ClaimState) -> str:
-    if state.ask.get("reply_type") == "tap":
+    reply_type = state.ask.get("reply_type")
+    if reply_type == "tap":
         return "file"
+    if reply_type == "decline":
+        return "close"
     return "classify"
 
 
@@ -1005,7 +1090,7 @@ def maybe_open_batch_for_day(
     sess: Session,
     day_val: date,
     day_iso: str,
-    latest_claim: Claim,
+    latest_claim: Claim | None = None,
 ) -> tuple[str | None, int]:
     """Attach claim to an open batch, or open a new batch once all consent asks are answered."""
     det_rows = list(sess.scalars(select(Detection).where(Detection.day == day_val)))
@@ -1019,7 +1104,7 @@ def maybe_open_batch_for_day(
         select(Batch).where(Batch.status == "open").order_by(Batch.created_at.desc())
     )
     if open_batch is not None:
-        if latest_claim.batch_id is None:
+        if latest_claim is not None and latest_claim.batch_id is None:
             latest_claim.batch_id = open_batch.id
         return None, 0
 
@@ -1028,6 +1113,14 @@ def maybe_open_batch_for_day(
     pending_consent = [a for a in consent_asks if a.status == "pending"]
 
     if not consent_asks or len(consent_asks) < len(file_det_ids) or pending_consent:
+        return None, 0
+
+    claims_for_day = list(
+        sess.scalars(
+            select(Claim).where(Claim.detection_id.in_(all_det_ids)).order_by(Claim.shop_id)
+        )
+    )
+    if not claims_for_day:
         return None, 0
 
     base_batch_id = f"batch_{day_iso.replace('-', '')}"
@@ -1040,11 +1133,6 @@ def maybe_open_batch_for_day(
     sess.add(batch_row)
     sess.flush()
 
-    claims_for_day = list(
-        sess.scalars(
-            select(Claim).where(Claim.detection_id.in_(all_det_ids)).order_by(Claim.shop_id)
-        )
-    )
     attached_ids: list[str] = []
     for c in claims_for_day:
         if c.batch_id is None:

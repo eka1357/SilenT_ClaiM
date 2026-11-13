@@ -264,8 +264,9 @@ export async function submitConsent(
   askId: string,
   consent: boolean
 ): Promise<Record<string, unknown>> {
+  const action = consent ? "consent" : "decline";
   return fetchJson<Record<string, unknown>>(
-    `/api/asks/${encodeURIComponent(askId)}/consent`,
+    `/api/asks/${encodeURIComponent(askId)}/${action}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

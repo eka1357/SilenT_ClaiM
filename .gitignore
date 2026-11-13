@@ -11,4 +11,5 @@ web/test-results/
 web/playwright-report/
 api/runs/
 api/*.db
+api/*.db-*
 .DS_Store
