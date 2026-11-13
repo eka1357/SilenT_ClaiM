@@ -8,7 +8,7 @@ Silent Claim is a feature for Paytm for Business. When a merchant's Paytm paymen
 
 Hero line: "When the Soundbox goes silent, that is the claim."
 
-This is a hackathon build: Paytm Build for India AI Hackathon, Chennai, Track 2 (AI-Powered Financial Journeys). On the day we have about five hours to build. A demo that never breaks beats a big one that might.
+This is a hackathon build: Paytm Build for India AI Hackathon, Chennai, Track 2 (AI-Powered Financial Journeys). Code written before the event is allowed (confirmed 13 Nov), so we build before the finale on 15 Nov and use the day itself for Paytm keys, polish and rehearsal. A demo that never breaks beats a big one that might.
 
 ## Read before you code
 
