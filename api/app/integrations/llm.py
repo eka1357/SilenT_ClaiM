@@ -494,6 +494,17 @@ def classify_reply(
     )
 
 
+def _strip_summary_mode_tags(text: str) -> str:
+    """Strip any '(Live)' or '(Replay)' tags from AI summary text."""
+    cleaned = re.sub(
+        r"\s*\((?:Live|Replay(?:\s+fallback)?)\)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
+    return re.sub(r"\s+\.", ".", cleaned)
+
+
 def _fallback_evidence_summary(
     *,
     shop_name: str,
@@ -510,7 +521,7 @@ def _fallback_evidence_summary(
         f"compared with a 28-day median baseline of Rs. {baseline_rs:,.2f}. "
         f"With {quorum_dropped} of {quorum_total} shops on the street dropping simultaneously "
         f"during {rain_mm:.1f} mm of recorded rainfall, the closure aligns with a street-wide "
-        "flood disruption (Replay)."
+        "flood disruption."
     )
 
 
@@ -524,16 +535,17 @@ def summarize_evidence(
     quorum_dropped: int,
     quorum_total: int,
     rain_mm: float,
-    rain_source: str,
+    rain_source: str = "",
     cause_label: str | None = None,
     settings: Settings | None = None,
     client: httpx.Client | None = None,
 ) -> str | None:
     """Generate a brief cosmetic English summary for an evidence PDF.
 
-    In DEMO_OFFLINE=1 or on any error/timeout, returns a deterministic replay summary so the
-    PDF always includes Section 3.
+    In DEMO_OFFLINE=1 or on any error/timeout, returns a deterministic summary so the
+    PDF always includes Section 3. Mode tags are never passed to or returned from the prompt.
     """
+    _ = rain_source
     cfg = settings or get_settings()
     baseline_rs = baseline_paise / 100.0
     day_rs = day_income_paise / 100.0
@@ -564,7 +576,7 @@ def summarize_evidence(
         f"Baseline median daily sales: Rs. {baseline_rs:,.2f}\n"
         f"Event day sales: Rs. {day_rs:,.2f}\n"
         f"Street quorum dropped: {quorum_dropped}/{quorum_total}\n"
-        f"Rainfall: {rain_mm:.1f} mm ({rain_source})\n"
+        f"Rainfall: {rain_mm:.1f} mm\n"
         f"Reply classification: {cause_label or 'merchant_consent_tap'}"
     )
     system_prompt = (
@@ -597,9 +609,9 @@ def summarize_evidence(
                     resp = own_client.post(SARVAM_CHAT_URL, headers=headers, json=body)
             resp.raise_for_status()
             payload = resp.json()
-            text = str(
-                payload.get("choices", [{}])[0].get("message", {}).get("content", "")
-            ).strip()
+            text = _strip_summary_mode_tags(
+                str(payload.get("choices", [{}])[0].get("message", {}).get("content", ""))
+            )
             return text or fallback
 
         if provider == "gemini":
@@ -622,7 +634,9 @@ def summarize_evidence(
             resp.raise_for_status()
             payload = resp.json()
             parts = payload.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-            text = "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
+            text = _strip_summary_mode_tags(
+                "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+            )
             return text or fallback
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
         logger.warning(

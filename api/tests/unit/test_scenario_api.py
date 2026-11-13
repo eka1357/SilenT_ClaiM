@@ -82,7 +82,8 @@ def _extract_pdf_text_streams(pdf_bytes: bytes) -> str:
             except zlib.error:
                 pass
         cursor = end + len(b"endstream")
-    return "\n".join(chunks).replace(r"\(", "(").replace(r"\)", ")")
+    joined = "\n".join(chunks).replace(r"\(", "(").replace(r"\)", ")")
+    return joined.replace(") Tj T* (", " ")
 
 
 def _safe_a85_decode(data: bytes) -> bytes | None:
@@ -211,6 +212,7 @@ def test_offline_oct21_checkpoint_end_to_end(tmp_path: Path) -> None:
         assert pdf_resp.headers["content-type"].startswith("application/pdf")
         assert pdf_resp.content.startswith(b"%PDF-")
         pdf_text = _extract_pdf_text_streams(pdf_resp.content)
+        assert "/Count 1" in pdf_text
         assert "Synthetic data for demonstration" in pdf_text
         assert RULES_VERSION in pdf_text
         assert (
@@ -219,6 +221,8 @@ def test_offline_oct21_checkpoint_end_to_end(tmp_path: Path) -> None:
         ) in pdf_text
         assert "Summary (written by AI from the numbers above; it sets no amount)" in pdf_text
         assert "Cosmetic Note" not in pdf_text
+        assert "Transactions" not in pdf_text
+        assert pdf_text.count("(Replay)") == 1
 
         # SSE bus recorded the required events with monotonically increasing IDs.
         bus_events = client.app.state.container.bus.events  # type: ignore[attr-defined]

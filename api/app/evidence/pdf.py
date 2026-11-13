@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -72,6 +73,17 @@ def _format_merchant_title(owner: str, shop_name: str) -> str:
         return clean_shop
     lowered_shop = clean_shop[:1].lower() + clean_shop[1:] if clean_shop else "shop"
     return f"{clean_owner}'s {lowered_shop}"
+
+
+def _strip_mode_tags(text: str) -> str:
+    """Remove any '(Live)' or '(Replay)' mode tags from AI summary text."""
+    cleaned = re.sub(
+        r"\s*\((?:Live|Replay(?:\s+fallback)?)\)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
+    return re.sub(r"\s+\.", ".", cleaned)
 
 
 def _build_7day_bar_chart(
@@ -177,8 +189,8 @@ def build_evidence_pdf(data: EvidencePackData, output_path: Path) -> Path:
         "EvidenceVerdict",
         parent=styles["Normal"],
         fontName="Helvetica-Bold",
-        fontSize=8.0,
-        leading=12,
+        fontSize=14,
+        leading=18,
         textColor=colors.HexColor("#141311"),
         spaceAfter=6,
     )
@@ -291,36 +303,20 @@ def build_evidence_pdf(data: EvidencePackData, output_path: Path) -> Path:
     story.append(proof_table)
 
     if data.summary_text:
-        story.append(
-            Paragraph(
-                "3. Summary (written by AI from the numbers above; it sets no amount)",
-                section_style,
+        clean_summary = _strip_mode_tags(data.summary_text)
+        if clean_summary:
+            story.append(
+                Paragraph(
+                    "3. Summary (written by AI from the numbers above; it sets no amount)",
+                    section_style,
+                )
             )
-        )
-        story.append(Paragraph(data.summary_text, body_style))
+            story.append(Paragraph(clean_summary, body_style))
 
     if data.recent_days:
         sec_num = 4 if data.summary_text else 3
         story.append(Paragraph(f"{sec_num}. Recent Daily Payment History (IST)", section_style))
         story.append(_build_7day_bar_chart(data.recent_days, data.day_iso))
-        story.append(Spacer(1, 4))
-        hist_rows = [["Date", "Transactions", "Daily Total"]]
-        for day_s, n_pay, amt_p in data.recent_days:
-            hist_rows.append([day_s, str(n_pay), _format_rs(amt_p)])
-        hist_table = Table(hist_rows, colWidths=[50 * mm, 45 * mm, 77 * mm])
-        hist_table.setStyle(
-            TableStyle(
-                [
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 8.5),
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAE4D8")),
-                    ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CFC8BC")),
-                    ("PADDING", (0, 0), (-1, -1), 4),
-                ]
-            )
-        )
-        story.append(hist_table)
 
     story.append(Spacer(1, 10))
     story.append(
