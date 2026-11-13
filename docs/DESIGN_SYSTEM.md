@@ -100,10 +100,12 @@ From 768 to 1279 px, the receipt moves below the case file. Below 768 px everyth
 **`/merchant`:** a 390 × 844 phone frame centred on ink, with paper inside. Screens:
 1. **Listening:** "Your shop is covered" and the plan name.
 2. **Ask:** play the voice prompt; the Tamil text large and the English gloss small; a "What we share" line (the shop's daily totals for 28 days, the street count and the rainfall, sent only to the insurer for this claim) with a "Details" sheet; the "ஆம், பதிவு செய்யுங்கள்" (Yes, file it) button; and a smaller "Reply by voice" button.
-3. **Filed:** a check, "Claim filed" and "Forms filled: 0".
-4. **Money back:** a receipt with "₹35 returned" and the Paytm staging refund ID.
+3. **Filed:** a check, "Claim filed", "Forms filled: 0", and a vertical claim tracker (Asked, Filed, Approved by adjuster, ₹35 back, Claim payout by insurer labelled "Simulated") with a timestamp for each step.
+4. **Money back:** a receipt with "₹35 returned" and the Paytm staging refund ID, above the live vertical claim tracker.
 
 Under the frame, a caption reads "Concept: inside Paytm for Business". On a real phone the frame drops away and the screen fills the viewport.
+
+**`/lab` ("Try to fool it", linked from `/console` top bar):** paper background, labelled "Simulated scenarios, same rules as production (2026.11-a)". Left column holds the four sliders (shops closed 0-12, rainfall 0-60 mm, sales today 0-150%, days traded in the 3 days before 0-3), the regular weekly holiday selector (`none` / `yesterday` / `today`), and the live decision card ("Files the claim", "Asks first", or "No action", plain-English explanation, and what happens next). Right column holds seven edge-case preset cards in a two-column grid. Fits 1440 × 900 on desktop and stacks to one column on mobile.
 
 **`/adjuster`:** paper background. A table of the batch (shop, owner, drop %, quorum, rain, consent time, evidence and rules version), an evidence PDF preview pane, and one primary button: "Approve batch (7)".
 

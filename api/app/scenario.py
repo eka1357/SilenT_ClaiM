@@ -254,11 +254,7 @@ class ScenarioRunner:
                 if n_days < 2:
                     normal_hours[sid] = set(range(8, 22))
                     continue
-                hrs = {
-                    hr
-                    for hr, hits in hour_hits_by_shop[sid].items()
-                    if (hits / n_days) >= 0.50
-                }
+                hrs = {hr for hr, hits in hour_hits_by_shop[sid].items() if (hits / n_days) >= 0.50}
                 normal_hours[sid] = hrs if hrs else set(range(8, 22))
 
         return shop_ids, sorted(hour_set), hourly_map, normal_hours
@@ -342,7 +338,9 @@ class ScenarioRunner:
 
         # Trigger automated simulated personas sequentially so SQLite and MemorySaver never contend.
         persona_coros: list[tuple[float, str, str, str]] = []
-        step_pause = 0.0 if (speed <= 0 or run_personas_inline) else min(0.25, max(0.05, 9.0 / speed))
+        step_pause = (
+            0.0 if (speed <= 0 or run_personas_inline) else min(0.25, max(0.05, 9.0 / speed))
+        )
 
         for ask_id, shop_id, ask_kind in pending_asks:
             if shop_id == SELVI_SHOP_ID and ask_kind == "consent":
@@ -416,7 +414,7 @@ class ScenarioRunner:
             cutoff_hour = day_start + timedelta(hours=22)
 
         with self._db().session() as sess:
-            from app.models import Claim, Street
+            from app.models import Batch, Claim, Street
 
             street = sess.get(Street, street_id)
             if street is None:
@@ -465,9 +463,11 @@ class ScenarioRunner:
             claims_by_shop: dict[str, Claim] = {}
             for c in sess.scalars(select(Claim).order_by(Claim.created_at.desc())):
                 claims_by_shop.setdefault(c.shop_id, c)
+            batches_by_id: dict[str, Batch] = {b.id: b for b in sess.scalars(select(Batch))}
             refunds_by_claim: dict[str, Refund] = {}
             for r in sess.scalars(select(Refund).order_by(Refund.created_at.desc())):
-                refunds_by_claim.setdefault(r.claim_id, r)
+                if r.claim_id is not None:
+                    refunds_by_claim.setdefault(r.claim_id, r)
 
         snap = self.snapshot()
         shop_items: list[dict[str, Any]] = []
@@ -477,6 +477,11 @@ class ScenarioRunner:
             det = detections_by_shop.get(s.id)
             ask_obj = asks_by_shop.get(s.id)
             claim_obj = claims_by_shop.get(s.id)
+            batch_obj = (
+                batches_by_id.get(claim_obj.batch_id)
+                if claim_obj is not None and claim_obj.batch_id is not None
+                else None
+            )
             refund_obj = refunds_by_claim.get(claim_obj.id) if claim_obj is not None else None
 
             status = self.shop_statuses.get(s.id, "trading")
@@ -528,6 +533,7 @@ class ScenarioRunner:
                             "cause_label": ask_obj.cause_label,
                             "confidence": ask_obj.confidence,
                             "simulated_label": ask_obj.simulated_label,
+                            "created_at": ask_obj.created_at.isoformat(),
                             "answered_at": (
                                 ask_obj.answered_at.isoformat()
                                 if ask_obj.answered_at is not None
@@ -542,9 +548,15 @@ class ScenarioRunner:
                             "id": claim_obj.id,
                             "status": claim_obj.status,
                             "batch_id": claim_obj.batch_id,
+                            "created_at": claim_obj.created_at.isoformat(),
                             "consent_at": (
                                 claim_obj.consent_at.isoformat()
                                 if claim_obj.consent_at is not None
+                                else None
+                            ),
+                            "approved_at": (
+                                batch_obj.approved_at.isoformat()
+                                if batch_obj is not None and batch_obj.approved_at is not None
                                 else None
                             ),
                             "evidence_url": f"/api/evidence/{claim_obj.id}.pdf",
@@ -555,6 +567,7 @@ class ScenarioRunner:
                                     "amount_paise": refund_obj.amount_paise,
                                     "status": refund_obj.status,
                                     "label": refund_obj.mode_label,
+                                    "created_at": refund_obj.created_at.isoformat(),
                                 }
                                 if refund_obj is not None
                                 else None

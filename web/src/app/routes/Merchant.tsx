@@ -25,6 +25,23 @@ import { connectEventStream } from "@/lib/stream";
 
 const SELVI_SHOP_ID = "shop_01";
 
+function formatTrackerTime(
+  isoString?: string | null,
+  fallback = "Pending"
+): string {
+  if (!isoString) return fallback;
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  const formatted = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(parsed);
+  return `${formatted} IST`;
+}
+
 function buildSilentWavBlob(): Blob {
   const sampleRate = 16000;
   const numSamples = sampleRate;
@@ -117,6 +134,9 @@ export function Merchant() {
         }
       },
       onBatchReady: () => {
+        void refreshSelvi();
+      },
+      onBatchApproved: () => {
         void refreshSelvi();
       },
       onRefundStatus: () => {
@@ -432,6 +452,144 @@ export function Merchant() {
                     </a>
                   </div>
                 </div>
+
+                {/* Vertical claim tracker */}
+                {(() => {
+                  const isApproved =
+                    selvi.claim.status === "approved" ||
+                    Boolean(selvi.claim.approved_at) ||
+                    hasRefund;
+                  const steps = [
+                    {
+                      key: "asked",
+                      title: "Asked",
+                      done: true,
+                      time: formatTrackerTime(
+                        selvi.ask?.created_at ?? selvi.ask?.answered_at,
+                        "22:01:00 IST"
+                      ),
+                      simulated: false,
+                    },
+                    {
+                      key: "filed",
+                      title: "Filed",
+                      done: true,
+                      time: formatTrackerTime(
+                        selvi.claim.consent_at ?? selvi.claim.created_at,
+                        "22:02:00 IST"
+                      ),
+                      simulated: false,
+                    },
+                    {
+                      key: "approved",
+                      title: "Approved by adjuster",
+                      done: isApproved,
+                      time: isApproved
+                        ? formatTrackerTime(
+                            selvi.claim.approved_at ??
+                              selvi.claim.refund?.created_at,
+                            "Approved"
+                          )
+                        : "Awaiting batch review",
+                      simulated: false,
+                    },
+                    {
+                      key: "refund",
+                      title: "₹35 back",
+                      done: Boolean(selvi.claim.refund),
+                      time: selvi.claim.refund
+                        ? formatTrackerTime(
+                            selvi.claim.refund.created_at ??
+                              selvi.claim.approved_at,
+                            "Refunded"
+                          )
+                        : "Queued on approval",
+                      simulated: false,
+                    },
+                    {
+                      key: "insurer_payout",
+                      title: "Claim payout by insurer",
+                      done: isApproved,
+                      time: isApproved
+                        ? formatTrackerTime(
+                            selvi.claim.approved_at ??
+                              selvi.claim.refund?.created_at,
+                            "Queued"
+                          )
+                        : "After batch approval",
+                      simulated: true,
+                    },
+                  ];
+                  return (
+                    <div
+                      aria-label="Claim progress tracker"
+                      className="flex flex-col gap-2 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5"
+                    >
+                      <span className="font-label text-[var(--text-3)]">
+                        CLAIM TRACKER
+                      </span>
+                      <ol className="flex flex-col">
+                        {steps.map((step, idx) => {
+                          const isLast = idx === steps.length - 1;
+                          return (
+                            <li
+                              key={step.key}
+                              className="relative flex items-start gap-2.5 pb-2.5 last:pb-0"
+                            >
+                              {!isLast ? (
+                                <span
+                                  aria-hidden="true"
+                                  className={`absolute left-[9px] top-[20px] bottom-0 w-[2px] ${
+                                    step.done
+                                      ? "bg-[var(--ok-paper)]"
+                                      : "bg-[var(--line)]"
+                                  }`}
+                                />
+                              ) : null}
+                              <span
+                                aria-hidden="true"
+                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                                  step.done
+                                    ? "border-[var(--ok-paper)] bg-[var(--ok-paper)] text-[var(--paper)]"
+                                    : "border-[var(--line)] bg-[var(--paper)] text-[var(--text-3)]"
+                                }`}
+                              >
+                                {step.done ? (
+                                  <CheckGlyph className="h-3 w-3" />
+                                ) : (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--text-3)]" />
+                                )}
+                              </span>
+                              <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span
+                                    className={`text-[14px] leading-[20px] ${
+                                      step.done
+                                        ? "font-semibold text-[var(--text-1)]"
+                                        : "font-medium text-[var(--text-3)]"
+                                    }`}
+                                  >
+                                    {step.title}
+                                  </span>
+                                  {step.simulated ? (
+                                    <StateLabel
+                                      kind="simulated"
+                                      text="Simulated"
+                                      surface="paper"
+                                    />
+                                  ) : null}
+                                </div>
+                                <span className="font-mono-num text-[12px] leading-[16px] text-[var(--text-2)]">
+                                  {step.time}
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  );
+                })()}
 
                 {/* Screen 4: Money back receipt */}
                 {hasRefund && selvi.claim.refund ? (

@@ -15,6 +15,7 @@ const CONSOLE_PNG = path.resolve(OUT_DIR, "console.png");
 const MERCHANT_ASK_PNG = path.resolve(OUT_DIR, "merchant-ask.png");
 const MERCHANT_MOBILE_PNG = path.resolve(OUT_DIR, "merchant-mobile.png");
 const ADJUSTER_PNG = path.resolve(OUT_DIR, "adjuster.png");
+const LAB_PNG = path.resolve(OUT_DIR, "lab.png");
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -210,6 +211,34 @@ async function main() {
 
     await page.screenshot({ path: CONSOLE_PNG, fullPage: false });
     console.log(`Saved screenshot to ${CONSOLE_PNG}`);
+
+    // 5. Open /lab at 1440x900, verify it fits and capture lab.png
+    await page.goto("http://127.0.0.1:5173/lab", { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => {
+        const text = (document.body.textContent || "").toLowerCase();
+        return (
+          text.includes("try to fool the detector") &&
+          text.includes("files the claim")
+        );
+      },
+      { timeout: 15000 }
+    );
+    await sleep(300);
+
+    const labDimensions = await page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      clientHeight: document.documentElement.clientHeight,
+    }));
+    console.log("Lab viewport check:", JSON.stringify(labDimensions));
+    if (labDimensions.scrollHeight > 900) {
+      throw new Error(
+        `Lab overflowed 1440x900 viewport: scrollHeight=${labDimensions.scrollHeight}`
+      );
+    }
+
+    await page.screenshot({ path: LAB_PNG, fullPage: false });
+    console.log(`Saved screenshot to ${LAB_PNG}`);
 
     if (consoleErrors.length > 0) {
       throw new Error(`Console errors detected: ${consoleErrors.join("; ")}`);

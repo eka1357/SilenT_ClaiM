@@ -22,6 +22,7 @@ The rain gate is deliberately low. On 21 Oct 2026 the city reported more than 10
 | Condition (checked in this order) | Decision |
 |---|---|
 | Shop has under 14 trading days of history | `ask` |
+| Today is the shop's recurring weekly holiday | `none` (reason `weekly_holiday`) |
 | Shop did not drop | `none` |
 | Shop dropped, not eligible (see Eligibility) | `ask` (reason `inactive_before_event`) |
 | Shop dropped, street quorum met, rain gate met | `file` |

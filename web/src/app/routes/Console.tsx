@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { CaseFile, type RawStepRecord } from "@/components/CaseFile";
 import { PlayGlyph } from "@/components/glyphs/PlayGlyph";
 import { Receipt, type ReceiptRefundItem } from "@/components/Receipt";
@@ -441,6 +442,12 @@ export function Console() {
           <span className="font-figures text-[14px] leading-[20px] text-[var(--text-dark-2)]">
             Rules 2026.11-a
           </span>
+          <Link
+            to="/lab"
+            className="rounded-[4px] border border-[var(--marigold)] bg-[var(--ink)] px-3 py-1 text-[14px] leading-[20px] font-semibold text-[var(--marigold)] hover:bg-[var(--ink-3)]"
+          >
+            Try to fool it
+          </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

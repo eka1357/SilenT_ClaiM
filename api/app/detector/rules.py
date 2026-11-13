@@ -45,6 +45,7 @@ class DecisionReason(StrEnum):
 
     FLOOD_QUORUM_AND_RAIN = "flood_quorum_and_rain"
     NOT_DROPPED = "not_dropped"
+    WEEKLY_HOLIDAY = "weekly_holiday"
     INSUFFICIENT_HISTORY = "insufficient_history"
     INACTIVE_BEFORE_EVENT = "inactive_before_event"
     NO_RAIN_SIGNAL = "no_rain_signal"
@@ -280,7 +281,25 @@ def decide(
             rain_gate_met=rain_gate_met,
         )
 
-    # Condition 2: Shop did not drop -> none
+    # Condition 2: Today is the shop's recurring weekly holiday -> none
+    if is_recurring_weekly_holiday(shop_hist, day_val, baseline_paise=baseline_paise):
+        return Decision(
+            shop_id=shop_hist.shop_id,
+            day=day_val,
+            decision=DecisionOutcome.NONE,
+            reason=DecisionReason.WEEKLY_HOLIDAY,
+            baseline_paise=baseline_paise,
+            day_income_paise=day_income_paise,
+            trading_days_count=trading_days_count,
+            dropped=dropped,
+            eligible=eligible,
+            quorum_share=quorum_share,
+            quorum_met=quorum_met,
+            rain_mm=rain_mm,
+            rain_gate_met=rain_gate_met,
+        )
+
+    # Condition 3: Shop did not drop -> none
     if not dropped:
         return Decision(
             shop_id=shop_hist.shop_id,

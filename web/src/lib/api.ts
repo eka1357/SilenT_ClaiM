@@ -48,6 +48,7 @@ export interface ShopAskView {
   cause_label: string | null;
   confidence: number | null;
   simulated_label: string | null;
+  created_at?: string | null;
   answered_at: string | null;
 }
 
@@ -57,13 +58,16 @@ export interface ShopRefundView {
   amount_paise: number;
   status: string;
   label: string;
+  created_at?: string | null;
 }
 
 export interface ShopClaimView {
   id: string;
   status: string;
   batch_id: string | null;
+  created_at?: string | null;
   consent_at: string | null;
+  approved_at?: string | null;
   evidence_url: string;
   refund: ShopRefundView | null;
 }
@@ -300,5 +304,41 @@ export async function approveBatch(
       method: "POST",
     }
   );
+}
+
+export type LabHolidayMode = "none" | "yesterday" | "today";
+
+export interface LabDecideRequest {
+  shops_closed: number;
+  rain_mm: number;
+  sales_today_pct: number;
+  days_traded_before: number;
+  regular_weekly_holiday: LabHolidayMode;
+}
+
+export interface LabDecideResponse {
+  decision: "file" | "ask" | "none";
+  decision_label: string;
+  reason: string;
+  explanation: string;
+  next_step: string;
+  shops_closed_effective: number;
+  quorum_share: number;
+  quorum_met: boolean;
+  rain_mm: number;
+  rain_gate_met: boolean;
+  dropped: boolean;
+  eligible: boolean;
+  rules_version: string;
+}
+
+export async function decideLabScenario(
+  payload: LabDecideRequest
+): Promise<LabDecideResponse> {
+  return fetchJson<LabDecideResponse>("/api/lab/decide", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }
 

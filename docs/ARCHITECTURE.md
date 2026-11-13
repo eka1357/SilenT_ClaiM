@@ -60,7 +60,7 @@ silent-claim/
 │  └─ tests/  unit/  contract/  fixtures/
 └─ web/
    ├─ src/
-   │  ├─ app/routes/       # Console.tsx, Merchant.tsx, Adjuster.tsx, Privacy.tsx, DevKit.tsx
+   │  ├─ app/routes/       # Console.tsx, Lab.tsx, Merchant.tsx, Adjuster.tsx, Privacy.tsx, DevKit.tsx
    │  ├─ components/       # Shopfront, Shutter, RoadBand, CaseFile, Receipt, PhoneFrame, ConsentButton, ...
    │  ├─ components/glyphs/ # our ~12 SVG glyphs (no icon library)
    │  ├─ components/ui/    # shadcn primitives (generated, then restyled)
@@ -98,6 +98,7 @@ silent-claim/
 | `POST` | `/api/batches/{id}/approve` | The adjuster approves the batch, which triggers pay back |
 | `GET` | `/api/evidence/{claim_id}.pdf` | Evidence pack |
 | `GET` | `/api/metrics` | Forms 0, taps, time to file, eval rates, live/replay flags |
+| `POST` | `/api/lab/decide` | Stateless what-if evaluation calling `detector/rules.py` `decide()` on synthetic 12-shop street histories (never writes asks, claims, or refunds) |
 | `GET` | `/api/stream` | SSE |
 | `GET` | `/api/health` | Which integrations are live, replay or failing |
 

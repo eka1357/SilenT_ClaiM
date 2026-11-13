@@ -58,6 +58,10 @@ test.describe("Silent Claim offline E2E demo & accessibility", () => {
       page.getByRole("heading", { name: "Claim filed" })
     ).toBeVisible();
     await expect(page.getByText("Forms filled")).toBeVisible();
+    await expect(page.getByLabel("Claim progress tracker")).toBeVisible();
+    await expect(
+      page.getByText("Claim payout by insurer")
+    ).toBeVisible();
 
     await page.goto("/adjuster", { waitUntil: "networkidle" });
     await expect(
@@ -117,6 +121,60 @@ test.describe("Silent Claim offline E2E demo & accessibility", () => {
     await expect(page.getByRole("cell", { name: "Flower stall" })).toHaveCount(
       0
     );
+  });
+
+  test("evaluates all 7 presets on /lab ('Try to fool it') and passes axe", async ({
+    page,
+  }) => {
+    await page.goto("/lab", { waitUntil: "networkidle" });
+    await expect(
+      page.getByRole("heading", { name: "Try to fool the detector" })
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        "Simulated scenarios, same rules as production (2026.11-a)"
+      )
+    ).toBeVisible();
+
+    const decisionLabel = page.getByTestId("lab-decision-label");
+
+    // 1. Flooded street -> Files the claim
+    await page.getByTestId("preset-flooded_street").click();
+    await expect(decisionLabel).toHaveText("Files the claim");
+
+    // 2. One shop alone on a dry day -> Asks first
+    await page.getByTestId("preset-lone_dry_drop").click();
+    await expect(decisionLabel).toHaveText("Asks first");
+    await expect(page.getByTestId("lab-decision-next-step")).toContainText(
+      "asks in Tamil and pays nothing until answered"
+    );
+
+    // 3. On leave since 3 days before -> Asks first
+    await page.getByTestId("preset-leave_3_days_before").click();
+    await expect(decisionLabel).toHaveText("Asks first");
+
+    // 4. Street shut with no rain (strike) -> Asks first
+    await page.getByTestId("preset-strike_no_rain").click();
+    await expect(decisionLabel).toHaveText("Asks first");
+
+    // 5. Closed today for its weekly holiday -> No action
+    await page.getByTestId("preset-holiday_today").click();
+    await expect(decisionLabel).toHaveText("No action");
+
+    // 6. Moved to another QR on the flood day -> Files the claim (known limit)
+    await page.getByTestId("preset-qr_switch_flood_day").click();
+    await expect(decisionLabel).toHaveText("Files the claim");
+    await expect(
+      page
+        .getByText("Known limit: caught by consent and the adjuster")
+        .first()
+    ).toBeVisible();
+
+    // 7. Weekly holiday yesterday, flood today -> Files the claim
+    await page.getByTestId("preset-holiday_yesterday_flood_today").click();
+    await expect(decisionLabel).toHaveText("Files the claim");
+
+    await expectNoSeriousOrCriticalAxeIssues(page, "/lab");
   });
 });
 

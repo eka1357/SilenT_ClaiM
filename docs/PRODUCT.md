@@ -76,6 +76,10 @@ Note: we could not confirm that Health Saathi is still sold today. The product w
 - The console shows "claims right" and "closures missed" with "Simulated eval" beside them.
 - Targets: at most 1 in 10 filed claims wrong, and a missed-claim rate of 10% or less. Report the real numbers either way.
 
+**US7: "Try to fool it" lab.** As a sceptical judge, I want to test edge cases against the real detector rules myself.
+- `/lab` (linked from the console top bar as "Try to fool it") exposes four sliders (shops closed 0-12, rainfall 0-60 mm, sales today 0-150%, days traded in the 3 days before 0-3) plus a regular weekly holiday selector (`none` / `yesterday` / `today`) and seven edge-case preset cards.
+- Every change calls `POST /api/lab/decide`, which builds a synthetic 12-shop street, invokes the production `decide()` in `detector/rules.py`, and returns the decision (`Files the claim`, `Asks first`, or `No action`), the reason in plain words, and what happens next without creating asks, claims, or refunds.
+
 ## On-screen metrics
 
 Forms filled: 0. Taps: 1. Time from event to filed claim. False-claim rate (eval). Refund status (Paytm staging).

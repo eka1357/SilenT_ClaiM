@@ -257,3 +257,67 @@ def test_second_refund_for_same_shop_in_same_month_is_refused() -> None:
     )
     assert next_month_refund.allowed is True
     assert next_month_refund.amount_paise == PLAN_FEE_PAISE
+
+
+# Case 12: Weekly holiday today on a dry day -> none, reason weekly_holiday
+def test_weekly_holiday_today_on_dry_day_returns_none_with_weekly_holiday_reason() -> None:
+    # 5 weeks (35 days) before EVENT_DAY so 30 non-Wednesday trading days >= 14
+    days: list[DailyIncome] = []
+    for offset in range(35, 0, -1):
+        d = EVENT_DAY - timedelta(days=offset)
+        is_wednesday = d.weekday() == EVENT_DAY.weekday()
+        days.append(
+            DailyIncome(
+                day=d,
+                amount_paise=0 if is_wednesday else 320_000,
+                n_payments=0 if is_wednesday else 30,
+            )
+        )
+    days.append(DailyIncome(day=EVENT_DAY, amount_paise=0, n_payments=0))
+    holiday_shop = ShopHistory(shop_id="shop_wed_holiday", days=tuple(days))
+    peer_shops = [
+        ShopHistory(
+            shop_id=f"peer_{idx}",
+            days=(
+                *tuple(
+                    DailyIncome(
+                        day=EVENT_DAY - timedelta(days=offset),
+                        amount_paise=320_000,
+                        n_payments=30,
+                    )
+                    for offset in range(35, 0, -1)
+                ),
+                DailyIncome(day=EVENT_DAY, amount_paise=320_000, n_payments=30),
+            ),
+        )
+        for idx in range(11)
+    ]
+    result = decide(holiday_shop, EVENT_DAY, [holiday_shop, *peer_shops], rain=0.0)
+    assert result.decision == DecisionOutcome.NONE
+    assert result.reason == DecisionReason.WEEKLY_HOLIDAY
+    assert result.dropped is True
+
+
+# Case 13: Weekly holiday today on a flood day -> none, reason weekly_holiday
+def test_weekly_holiday_today_on_flood_day_returns_none_with_weekly_holiday_reason(
+    simulated_street: dict[str, ShopHistory],
+    simulated_rain: dict[str, float],
+) -> None:
+    days: list[DailyIncome] = []
+    for offset in range(35, 0, -1):
+        d = EVENT_DAY - timedelta(days=offset)
+        is_wednesday = d.weekday() == EVENT_DAY.weekday()
+        days.append(
+            DailyIncome(
+                day=d,
+                amount_paise=0 if is_wednesday else 320_000,
+                n_payments=0 if is_wednesday else 30,
+            )
+        )
+    days.append(DailyIncome(day=EVENT_DAY, amount_paise=0, n_payments=0))
+    holiday_shop = ShopHistory(shop_id="shop_wed_holiday_flood", days=tuple(days))
+    result = decide(holiday_shop, EVENT_DAY, simulated_street, simulated_rain)
+    assert result.decision == DecisionOutcome.NONE
+    assert result.reason == DecisionReason.WEEKLY_HOLIDAY
+    assert result.quorum_met is True
+    assert result.rain_gate_met is True
