@@ -4,14 +4,21 @@ version = "0.1.0"
 description = "Silent Claim backend API, detector rules, and evaluation"
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.162.5",
     "httpx>=0.28.1",
+    "langgraph>=1.2.21",
     "numpy>=2.4.6",
     "pandas>=3.1.1",
     "paytmchecksum>=1.7.0",
+    "psycopg[binary]>=3.3.9",
     "pycryptodome>=4.4.0",
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.2",
     "pytest>=9.2.0",
+    "python-multipart>=0.0.33",
+    "reportlab>=5.1.0",
+    "sqlalchemy>=2.0",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [tool.uv]

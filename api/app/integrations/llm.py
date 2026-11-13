@@ -492,3 +492,108 @@ def classify_reply(
         fallback_reason=f"transport_fallback:{last_transport_error or 'unknown'}",
         latency_ms=latency_ms,
     )
+
+
+def summarize_evidence(
+    *,
+    shop_name: str,
+    owner: str,
+    day_iso: str,
+    baseline_paise: int,
+    day_income_paise: int,
+    quorum_dropped: int,
+    quorum_total: int,
+    rain_mm: float,
+    rain_source: str,
+    cause_label: str | None = None,
+    settings: Settings | None = None,
+    client: httpx.Client | None = None,
+) -> str | None:
+    """Optionally generate a brief cosmetic English summary for an evidence PDF.
+
+    In DEMO_OFFLINE=1 or on any error/timeout, returns None so PDF generation proceeds safely.
+    """
+    cfg = settings or get_settings()
+    if is_offline(cfg):
+        return None
+
+    provider = (cfg.llm_provider or "sarvam").strip().lower()
+    api_key = (
+        cfg.sarvam_api_key.get_secret_value()
+        if provider == "sarvam"
+        else cfg.llm_api_key.get_secret_value()
+    )
+    if not api_key:
+        return None
+
+    baseline_rs = baseline_paise / 100.0
+    day_rs = day_income_paise / 100.0
+    facts = (
+        f"Shop: {shop_name} (owner {owner})\n"
+        f"Event date: {day_iso}\n"
+        f"Baseline median daily sales: Rs. {baseline_rs:,.2f}\n"
+        f"Event day sales: Rs. {day_rs:,.2f}\n"
+        f"Street quorum dropped: {quorum_dropped}/{quorum_total}\n"
+        f"Rainfall: {rain_mm:.1f} mm ({rain_source})\n"
+        f"Reply classification: {cause_label or 'merchant_consent_tap'}"
+    )
+    system_prompt = (
+        "Write one factual two-sentence summary for an insurance adjuster evidence pack "
+        "based strictly on the provided numbers. Do not recommend payout amounts."
+    )
+
+    try:
+        if provider == "sarvam":
+            model_name = cfg.llm_model.strip() or DEFAULT_SARVAM_MODEL
+            headers = {
+                "api-subscription-key": api_key,
+                "Content-Type": "application/json",
+            }
+            body: dict[str, Any] = {
+                "model": model_name,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": facts},
+                ],
+                "temperature": 0.0,
+                "max_tokens": 160,
+            }
+            if client is not None:
+                resp = client.post(
+                    SARVAM_CHAT_URL, headers=headers, json=body, timeout=cfg.request_timeout_s
+                )
+            else:
+                with httpx.Client(timeout=cfg.request_timeout_s) as own_client:
+                    resp = own_client.post(SARVAM_CHAT_URL, headers=headers, json=body)
+            resp.raise_for_status()
+            payload = resp.json()
+            text = str(
+                payload.get("choices", [{}])[0].get("message", {}).get("content", "")
+            ).strip()
+            return text or None
+
+        if provider == "gemini":
+            model_name = cfg.llm_model.strip() or DEFAULT_GEMINI_MODEL
+            url = resolve_gemini_endpoint(model_name, use_vertex_express=cfg.llm_use_vertex_express)
+            headers = {
+                "x-goog-api-key": api_key,
+                "Content-Type": "application/json",
+            }
+            body = {
+                "systemInstruction": {"parts": [{"text": system_prompt}]},
+                "contents": [{"role": "user", "parts": [{"text": facts}]}],
+                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 160},
+            }
+            if client is not None:
+                resp = client.post(url, headers=headers, json=body, timeout=cfg.request_timeout_s)
+            else:
+                with httpx.Client(timeout=cfg.request_timeout_s) as own_client:
+                    resp = own_client.post(url, headers=headers, json=body)
+            resp.raise_for_status()
+            payload = resp.json()
+            parts = payload.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            text = "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
+            return text or None
+    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+        logger.warning("llm_summarize_evidence failed (%s); omitting summary", type(exc).__name__)
+    return None
