@@ -1,0 +1,34 @@
+{
+  "id": "20261113_2fb8c5be-79f6-4c06-b06a-e4386be463cf",
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "logprobs": null,
+      "message": {
+        "content": "{\n  \"label\": \"other\",\n  \"confidence\": 0.95,\n  \"reason\": \"The speaker simply agrees to register or file a request without mentioning any specific reason for the payment stoppage.\"\n}",
+        "refusal": null,
+        "reasoning_content": null,
+        "role": "assistant",
+        "tool_calls": null
+      }
+    }
+  ],
+  "created": 1794539769,
+  "model": "sarvam-105b-conversations",
+  "object": "chat.completion",
+  "service_tier": null,
+  "system_fingerprint": "vllm-0.29.1rc1.dev145+gfe61f3317-9c902b0a",
+  "usage": {
+    "completion_tokens": 49,
+    "prompt_tokens": 333,
+    "total_tokens": 382,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 288,
+      "created_cache_tokens": 32,
+      "multimodal_tokens": null
+    }
+  }
+}

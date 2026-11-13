@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Silent Claim backend API, detector rules, and evaluation"
 requires-python = ">=3.11"
 dependencies = [
+    "httpx>=0.28.1",
     "numpy>=2.4.6",
     "pandas>=3.1.1",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.2",
     "pytest>=9.2.0",
 ]
 
@@ -15,6 +18,10 @@ package = false
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "live: marks tests that call live external APIs (opt-in via pytest -m live)",
+]
+addopts = "-m 'not live'"
 
 [tool.ruff]
 target-version = "py311"
