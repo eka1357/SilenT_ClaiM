@@ -1,0 +1,15 @@
+{
+  "rules_version": "2026.11-a",
+  "split": "held_out",
+  "label": "Simulated eval",
+  "total_cases": 60,
+  "claims_filed": 18,
+  "claims_right": 17,
+  "wrong_claims": 1,
+  "wrong_claim_share": 0.055556,
+  "false_positive_rate": 0.02381,
+  "closures_missed": 1,
+  "total_closures": 18,
+  "missed_claim_rate": 0.055556,
+  "non_flood_cases": 42
+}

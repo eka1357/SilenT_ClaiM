@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import uuid
@@ -11,8 +12,10 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
 
+import httpx
 from langgraph.types import interrupt
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.agents.state import ClaimState
@@ -25,9 +28,10 @@ from app.detector.baseline import (
     count_trading_days_before,
     get_day_income_paise,
 )
-from app.detector.config import RULES_VERSION
+from app.detector.config import PLAN_FEE_PAISE, RULES_VERSION
 from app.detector.rules import (
     DecisionOutcome,
+    check_payout_cap,
     compute_street_quorum,
     decide,
     is_day_dropped,
@@ -36,6 +40,16 @@ from app.detector.rules import (
 from app.events import EventBus, IntegrationHealthTracker
 from app.evidence.pdf import EvidencePackData, build_evidence_pdf
 from app.integrations.llm import CauseLabel, classify_reply, summarize_evidence
+from app.integrations.paytm import (
+    PENDING_DUMMY_KEY,
+    PENDING_DUMMY_MID,
+    PENDING_SIMULATED_LABEL,
+    PaytmClient,
+    PaytmUnavailableError,
+    build_refund_id,
+    build_refund_request,
+    redact_paytm_payload,
+)
 from app.integrations.replay import tts_cache_path
 from app.integrations.sarvam import (
     SarvamUnavailableError,
@@ -51,9 +65,11 @@ from app.models import (
     IST,
     Ask,
     AuditLog,
+    Batch,
     Claim,
     Detection,
     PaymentHourly,
+    Refund,
     Shop,
     Street,
     now_ist,
@@ -780,6 +796,10 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
             pdf_path,
         )
 
+        new_batch_id: str | None = None
+        batch_claim_count: int = 0
+        claim_batch_id: str | None = None
+
         with runtime.db.session() as sess:
             claim_row = Claim(
                 id=claim_id,
@@ -808,6 +828,14 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
                     },
                 )
             )
+            sess.flush()
+            new_batch_id, batch_claim_count = maybe_open_batch_for_day(
+                sess=sess,
+                day_val=day_val,
+                day_iso=state.day,
+                latest_claim=claim_row,
+            )
+            claim_batch_id = claim_row.batch_id
 
         runtime.bus.publish(
             "agent.step",
@@ -824,15 +852,36 @@ def build_nodes(runtime: AgentRuntime) -> dict[str, Callable[[ClaimState], dict[
             {
                 "claim_id": claim_id,
                 "shop_id": state.shop_id,
+                "batch_id": claim_batch_id,
                 "simulated_label": simulated_label,
                 "live": simulated_label is None,
                 "replay": is_offline(cfg),
             },
         )
+        if new_batch_id is not None:
+            runtime.bus.publish(
+                "batch.ready",
+                {
+                    "batch_id": new_batch_id,
+                    "n": batch_claim_count,
+                    "live": True,
+                    "replay": is_offline(cfg),
+                },
+            )
+            runtime.bus.publish(
+                "agent.step",
+                {
+                    "node": "batch",
+                    "status": "ok",
+                    "detail": f"Batch {new_batch_id} ready ({batch_claim_count} claims)",
+                    "live": True,
+                },
+            )
         return {
             "claim": {
                 "claim_id": claim_id,
                 "status": "filed",
+                "batch_id": claim_batch_id,
                 "evidence_pdf_path": str(pdf_path),
                 "consent_at": consent_dt.isoformat() if consent_dt is not None else None,
             },
@@ -950,3 +999,442 @@ def daily_shop_totals_map(
                 out[sid] = (rec.n_payments, rec.amount_paise)
                 break
     return dict(out)
+
+
+def maybe_open_batch_for_day(
+    sess: Session,
+    day_val: date,
+    day_iso: str,
+    latest_claim: Claim,
+) -> tuple[str | None, int]:
+    """Attach claim to an open batch, or open a new batch once all consent asks are answered."""
+    det_rows = list(sess.scalars(select(Detection).where(Detection.day == day_val)))
+    if not det_rows:
+        return None, 0
+
+    all_det_ids = [d.id for d in det_rows]
+    file_det_ids = [d.id for d in det_rows if d.decision == DecisionOutcome.FILE.value]
+
+    open_batch = sess.scalar(
+        select(Batch).where(Batch.status == "open").order_by(Batch.created_at.desc())
+    )
+    if open_batch is not None:
+        if latest_claim.batch_id is None:
+            latest_claim.batch_id = open_batch.id
+        return None, 0
+
+    asks_for_day = list(sess.scalars(select(Ask).where(Ask.detection_id.in_(all_det_ids))))
+    consent_asks = [a for a in asks_for_day if a.ask_kind == "consent"]
+    pending_consent = [a for a in consent_asks if a.status == "pending"]
+
+    if not consent_asks or len(consent_asks) < len(file_det_ids) or pending_consent:
+        return None, 0
+
+    base_batch_id = f"batch_{day_iso.replace('-', '')}"
+    batch_id = (
+        base_batch_id
+        if sess.get(Batch, base_batch_id) is None
+        else f"{base_batch_id}_{uuid.uuid4().hex[:4]}"
+    )
+    batch_row = Batch(id=batch_id, status="open")
+    sess.add(batch_row)
+    sess.flush()
+
+    claims_for_day = list(
+        sess.scalars(
+            select(Claim).where(Claim.detection_id.in_(all_det_ids)).order_by(Claim.shop_id)
+        )
+    )
+    attached_ids: list[str] = []
+    for c in claims_for_day:
+        if c.batch_id is None:
+            c.batch_id = batch_id
+        if c.batch_id == batch_id:
+            attached_ids.append(c.id)
+
+    sess.add(
+        AuditLog(
+            actor="agent",
+            action="batch.ready",
+            payload={
+                "batch_id": batch_id,
+                "n": len(attached_ids),
+                "claim_ids": attached_ids,
+            },
+        )
+    )
+    return batch_id, len(attached_ids)
+
+
+def _month_str_to_date(month_str: str, fallback: date) -> date:
+    """Convert 'YYYY-MM' into a representative date in that calendar month."""
+    try:
+        year_s, month_s = month_str.split("-", 1)
+        return date(int(year_s), int(month_s), 1)
+    except (ValueError, TypeError):
+        return fallback
+
+
+async def execute_claim_payback(
+    runtime: AgentRuntime,
+    claim_id: str,
+) -> dict[str, Any]:
+    """Execute the deterministic Rs 35 plan-fee payback for one approved claim."""
+    cfg = runtime.settings_getter()
+    refund_id = build_refund_id(claim_id)
+
+    if not cfg.payback_enabled:
+        with runtime.db.session() as sess:
+            claim_row = sess.get(Claim, claim_id)
+            if claim_row is not None:
+                claim_row.status = "Refunds paused"
+        return {
+            "claim_id": claim_id,
+            "refund_id": refund_id,
+            "amount_paise": 0,
+            "status": "Refunds paused",
+            "label": "Refunds paused",
+            "live": False,
+            "replay": is_offline(cfg),
+        }
+
+    with runtime.db.session() as sess:
+        existing_refund = sess.scalar(
+            select(Refund).where((Refund.refund_id == refund_id) | (Refund.claim_id == claim_id))
+        )
+        if existing_refund is not None:
+            return {
+                "claim_id": existing_refund.claim_id,
+                "shop_id": existing_refund.shop_id,
+                "refund_id": existing_refund.refund_id,
+                "amount_paise": existing_refund.amount_paise,
+                "status": existing_refund.status,
+                "label": existing_refund.mode_label,
+                "live": existing_refund.mode_label == "Live",
+                "replay": is_offline(cfg),
+                "idempotent": True,
+            }
+
+        claim_row = sess.get(Claim, claim_id)
+        if claim_row is None:
+            raise ValueError(f"Claim '{claim_id}' not found")
+
+        shop_id = claim_row.shop_id
+        det_row = sess.get(Detection, claim_row.detection_id)
+        day_val = det_row.day if det_row is not None else now_ist().date()
+        refund_month = day_val.strftime("%Y-%m")
+        shop_row = sess.get(Shop, shop_id)
+        staging_order_id = (shop_row.staging_order_id or "").strip() if shop_row is not None else ""
+
+        prior_refunds = list(
+            sess.scalars(
+                select(Refund).where(
+                    Refund.shop_id == shop_id,
+                    Refund.refund_month == refund_month,
+                    Refund.status != "refund_failed",
+                )
+            )
+        )
+        existing_dates = [_month_str_to_date(r.refund_month, day_val) for r in prior_refunds]
+        cap_decision = check_payout_cap(shop_id, day_val, existing_dates)
+        allowed = cap_decision.allowed
+        cap_reason = cap_decision.reason
+        if not allowed:
+            claim_row.status = "monthly_cap_reached"
+            sess.add(
+                AuditLog(
+                    actor="agent",
+                    action="refund.skipped_cap",
+                    payload={
+                        "claim_id": claim_id,
+                        "shop_id": shop_id,
+                        "refund_month": refund_month,
+                        "reason": cap_reason,
+                    },
+                )
+            )
+
+    if not allowed:
+        runtime.bus.publish(
+            "agent.step",
+            {
+                "claim_id": claim_id,
+                "node": "payback",
+                "status": "skipped",
+                "detail": f"Skipped payback for {shop_id}: {cap_reason} ({refund_month})",
+                "live": False,
+            },
+        )
+        payload = {
+            "claim_id": claim_id,
+            "shop_id": shop_id,
+            "refund_id": refund_id,
+            "amount_paise": 0,
+            "status": "monthly_cap_reached",
+            "label": "Monthly cap reached",
+            "live": False,
+            "replay": is_offline(cfg),
+        }
+        runtime.bus.publish("refund.status", payload)
+        return payload
+
+    mode = cfg.paytm_mode.strip().lower()
+    http_client: httpx.Client | None = getattr(runtime, "paytm_http_client", None)
+    poll_interval_s = float(getattr(runtime, "refund_poll_interval_s", 1.0))
+    secret_val = cfg.paytm_merchant_key.get_secret_value().strip()
+    secrets_tuple = (secret_val,) if secret_val else ()
+    health_cb = runtime.health.make_callback(ignore_down_when_offline=True)
+
+    if mode == "pending":
+        paytm_client = PaytmClient(settings=cfg, client=http_client)
+        order_id = staging_order_id or f"ORD-PENDING-{shop_id.upper()}"
+        txn_id = f"TXN-PENDING-{shop_id.upper()}"
+        refund_res = paytm_client.refund_plan_fee(
+            order_id=order_id,
+            txn_id=txn_id,
+            claim_id=claim_id,
+        )
+        status_res = paytm_client.get_refund_status(
+            order_id=order_id,
+            claim_id=claim_id,
+        )
+        refund_status = "SIMULATED"
+        mode_label = PENDING_SIMULATED_LABEL
+        claim_status = "paid_sim"
+        live_call = False
+        raw_payload = redact_paytm_payload(
+            {
+                "request": refund_res.redacted_request,
+                "refund": refund_res.redacted_response,
+                "refund_status": status_res.redacted_response,
+            },
+            secrets=secrets_tuple,
+        )
+        health_cb("paytm", "simulated")
+    elif not staging_order_id:
+        order_id = f"SIM-NO-ORDER-{shop_id.upper()}"
+        mid = (cfg.paytm_mid or "").strip() or PENDING_DUMMY_MID
+        key = secret_val or PENDING_DUMMY_KEY
+        signed_req = build_refund_request(
+            order_id=order_id,
+            txn_id=f"SIM-TXN-{shop_id.upper()}",
+            claim_id=claim_id,
+            mid=mid,
+            merchant_key=key,
+        )
+        refund_status = "SIMULATED"
+        mode_label = "Simulated refund (no staging payment)"
+        claim_status = "paid_sim"
+        live_call = False
+        raw_payload = redact_paytm_payload(
+            {
+                "request": signed_req.payload,
+                "body": {
+                    "resultInfo": {
+                        "resultStatus": "SIMULATED",
+                        "resultCode": "SIM_NO_STAGING_ORDER",
+                        "resultMsg": mode_label,
+                    },
+                    "orderId": order_id,
+                    "refId": refund_id,
+                    "refundAmount": "35.00",
+                },
+            },
+            secrets=secrets_tuple,
+        )
+    else:
+        order_id = staging_order_id
+        paytm_client = PaytmClient(settings=cfg, client=http_client)
+        try:
+            txn_status_res = paytm_client.get_transaction_status(order_id=order_id)
+            txn_id = txn_status_res.txn_id or f"TXN-{order_id}"
+            refund_res = paytm_client.refund_plan_fee(
+                order_id=order_id,
+                txn_id=txn_id,
+                claim_id=claim_id,
+            )
+            status_res = None
+            polls_taken = 0
+            for attempt in range(3):
+                polls_taken = attempt + 1
+                status_res = paytm_client.get_refund_status(
+                    order_id=order_id,
+                    claim_id=claim_id,
+                )
+                st_upper = (status_res.status or "").upper()
+                if st_upper not in {"PENDING", "TXN_PENDING", "INITIATED", "PROCESSING"}:
+                    break
+                if attempt < 2 and poll_interval_s > 0:
+                    await asyncio.sleep(poll_interval_s)
+
+            assert status_res is not None
+            st_upper = (status_res.status or "").upper()
+            live_call = not status_res.simulated
+            if st_upper in {"TXN_SUCCESS", "SUCCESS"}:
+                refund_status = "TXN_SUCCESS"
+                mode_label = status_res.label
+                claim_status = "approved"
+            elif st_upper in {"PENDING", "TXN_PENDING", "INITIATED", "PROCESSING"}:
+                refund_status = "Pending at Paytm"
+                mode_label = "Pending at Paytm"
+                claim_status = "approved"
+            else:
+                refund_status = "refund_failed"
+                mode_label = status_res.label
+                claim_status = "refund_failed"
+
+            health_cb("paytm", "live" if live_call else "replay")
+            raw_payload = redact_paytm_payload(
+                {
+                    "txn_status": txn_status_res.redacted_response,
+                    "refund": refund_res.redacted_response,
+                    "refund_status": status_res.redacted_response,
+                    "polls": polls_taken,
+                },
+                secrets=secrets_tuple,
+            )
+        except (PaytmUnavailableError, httpx.HTTPError) as exc:
+            logger.warning("Paytm staging refund failed for %s: %s", claim_id, exc)
+            refund_status = "refund_failed"
+            mode_label = "Paytm staging unavailable"
+            claim_status = "refund_failed"
+            live_call = False
+            raw_payload = redact_paytm_payload(
+                {
+                    "error": str(exc),
+                    "orderId": order_id,
+                    "refId": refund_id,
+                },
+                secrets=secrets_tuple,
+            )
+            health_cb("paytm", "down")
+
+    try:
+        with runtime.db.session() as sess:
+            existing_refund = sess.scalar(
+                select(Refund).where(
+                    (Refund.refund_id == refund_id) | (Refund.claim_id == claim_id)
+                )
+            )
+            if existing_refund is not None:
+                return {
+                    "claim_id": existing_refund.claim_id,
+                    "shop_id": existing_refund.shop_id,
+                    "refund_id": existing_refund.refund_id,
+                    "amount_paise": existing_refund.amount_paise,
+                    "status": existing_refund.status,
+                    "label": existing_refund.mode_label,
+                    "live": existing_refund.mode_label == "Live",
+                    "replay": is_offline(cfg),
+                    "idempotent": True,
+                }
+
+            refund_row = Refund(
+                id=f"rfd_{uuid.uuid4().hex[:10]}",
+                claim_id=claim_id,
+                shop_id=shop_id,
+                refund_month=refund_month,
+                paytm_order_id=order_id,
+                refund_id=refund_id,
+                amount_paise=PLAN_FEE_PAISE,
+                status=refund_status,
+                mode_label=mode_label,
+                raw_response=redact_paytm_payload(raw_payload),
+            )
+            sess.add(refund_row)
+            claim_row = sess.get(Claim, claim_id)
+            if claim_row is not None:
+                claim_row.status = claim_status
+            sess.add(
+                AuditLog(
+                    actor="agent",
+                    action="refund.processed",
+                    payload={
+                        "claim_id": claim_id,
+                        "shop_id": shop_id,
+                        "refund_id": refund_id,
+                        "amount_paise": PLAN_FEE_PAISE,
+                        "status": refund_status,
+                        "label": mode_label,
+                    },
+                )
+            )
+    except IntegrityError:
+        with runtime.db.session() as sess:
+            claim_row = sess.get(Claim, claim_id)
+            if claim_row is not None:
+                claim_row.status = "monthly_cap_reached"
+            sess.add(
+                AuditLog(
+                    actor="agent",
+                    action="refund.skipped_cap",
+                    payload={
+                        "claim_id": claim_id,
+                        "shop_id": shop_id,
+                        "refund_month": refund_month,
+                        "reason": "uq_refunds_shop_month",
+                    },
+                )
+            )
+        payload = {
+            "claim_id": claim_id,
+            "shop_id": shop_id,
+            "refund_id": refund_id,
+            "amount_paise": 0,
+            "status": "monthly_cap_reached",
+            "label": "Monthly cap reached",
+            "live": False,
+            "replay": is_offline(cfg),
+        }
+        runtime.bus.publish("refund.status", payload)
+        return payload
+
+    runtime.bus.publish(
+        "agent.step",
+        {
+            "claim_id": claim_id,
+            "node": "payback",
+            "status": "ok" if refund_status != "refund_failed" else "error",
+            "detail": f"Payback {refund_id} for {shop_id}: {refund_status} ({mode_label})",
+            "live": live_call,
+        },
+    )
+    payload = {
+        "claim_id": claim_id,
+        "shop_id": shop_id,
+        "refund_id": refund_id,
+        "amount_paise": PLAN_FEE_PAISE,
+        "status": refund_status,
+        "label": mode_label,
+        "live": live_call,
+        "replay": is_offline(cfg),
+    }
+    runtime.bus.publish("refund.status", payload)
+    return payload
+
+
+async def run_batch_payback(
+    runtime: AgentRuntime,
+    batch_id: str,
+) -> list[dict[str, Any]]:
+    """Run plan-fee payback sequentially for all claims in an approved batch."""
+    cfg = runtime.settings_getter()
+    if not cfg.payback_enabled:
+        return []
+
+    with runtime.db.session() as sess:
+        batch_row = sess.get(Batch, batch_id)
+        if batch_row is None or batch_row.status != "approved":
+            return []
+        claim_ids = [
+            c.id
+            for c in sess.scalars(
+                select(Claim).where(Claim.batch_id == batch_id).order_by(Claim.shop_id)
+            )
+        ]
+
+    results: list[dict[str, Any]] = []
+    for cid in claim_ids:
+        res = await execute_claim_payback(runtime, cid)
+        results.append(res)
+    return results

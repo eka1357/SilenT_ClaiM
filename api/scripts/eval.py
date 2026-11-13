@@ -11,6 +11,7 @@ Reports (matching docs/DATA_SPEC.md Metrics):
 
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -217,9 +218,35 @@ def evaluate_split(split: str = "held_out") -> EvalMetrics:
     )
 
 
+def write_eval_results_json(
+    metrics: EvalMetrics,
+    output_path: Path = DATA_DIR / "eval_results.json",
+) -> Path:
+    """Persist held-out evaluation summary to api/data/eval_results.json for GET /api/metrics."""
+    payload = {
+        "rules_version": RULES_VERSION,
+        "split": metrics.split,
+        "label": "Simulated eval",
+        "total_cases": metrics.total_cases,
+        "claims_filed": metrics.claims_filed,
+        "claims_right": metrics.claims_right,
+        "wrong_claims": metrics.wrong_claims,
+        "wrong_claim_share": round(metrics.wrong_claim_share, 6),
+        "false_positive_rate": round(metrics.false_positive_rate, 6),
+        "closures_missed": metrics.missed_claims,
+        "total_closures": metrics.flood_cases,
+        "missed_claim_rate": round(metrics.missed_claim_rate, 6),
+        "non_flood_cases": metrics.non_flood_cases,
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return output_path
+
+
 def main() -> None:
     """Print held-out evaluation metrics, confusion matrices, and misclassified cases."""
     metrics = evaluate_split("held_out")
+    write_eval_results_json(metrics)
     print(f"Silent Claim Detector Evaluation (RULES_VERSION={RULES_VERSION})")
     print("Dataset: 200 simulated shop-weeks (140 tuning / 60 held-out)")
     print(f"Split reported: {metrics.split} (n={metrics.total_cases})")

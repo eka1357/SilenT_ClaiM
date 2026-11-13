@@ -14,6 +14,7 @@ from app.config import Settings, get_settings
 from app.container import RUNS_DIR, AppContainer, build_container
 from app.db import DATA_DIR
 from app.integrations.replay import FIXTURES_DIR
+from app.routes.adjuster import adjuster_router
 from app.routes.claims import asks_router, claims_router
 from app.routes.scenario import router as scenario_router
 from app.routes.shops import router as shops_router
@@ -85,6 +86,7 @@ def create_app(
     application.include_router(shops_router)
     application.include_router(claims_router)
     application.include_router(asks_router)
+    application.include_router(adjuster_router)
     application.include_router(stream_router)
     return application
 

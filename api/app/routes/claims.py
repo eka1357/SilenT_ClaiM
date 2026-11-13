@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from app.container import enforce_rate_limit, get_container
 from app.integrations.sarvam import MAX_AUDIO_BYTES
-from app.models import Ask, Claim, Detection, Shop, now_ist
+from app.models import Ask, Claim, Detection, Refund, Shop, now_ist
 
 MAX_AUDIO_SECONDS = 60.0
 ALLOWED_AUDIO_EXTENSIONS: frozenset[str] = frozenset({".wav", ".mp3", ".ogg", ".webm", ".m4a"})
@@ -111,12 +111,14 @@ def list_claims(request: Request) -> dict[str, Any]:
         detections = {d.id: d for d in sess.scalars(select(Detection))}
         asks = list(sess.scalars(select(Ask).order_by(Ask.created_at, Ask.shop_id)))
         ask_by_detection = {a.detection_id: a for a in asks}
+        refunds_by_claim = {r.claim_id: r for r in sess.scalars(select(Refund))}
 
     claim_items: list[dict[str, Any]] = []
     for c in claims:
         shop = shops.get(c.shop_id)
         det = detections.get(c.detection_id)
         ask = ask_by_detection.get(c.detection_id)
+        refund = refunds_by_claim.get(c.id)
         claim_items.append(
             {
                 "id": c.id,
@@ -124,6 +126,7 @@ def list_claims(request: Request) -> dict[str, Any]:
                 "shop_name": shop.name if shop else c.shop_id,
                 "owner": shop.owner if shop else c.shop_id,
                 "detection_id": c.detection_id,
+                "batch_id": c.batch_id,
                 "day": det.day.isoformat() if det else None,
                 "baseline_paise": det.baseline_paise if det else 0,
                 "day_income_paise": det.day_income_paise if det else 0,
@@ -137,6 +140,19 @@ def list_claims(request: Request) -> dict[str, Any]:
                 "simulated_label": ask.simulated_label if ask else None,
                 "cause_label": ask.cause_label if ask else None,
                 "evidence_url": f"/api/evidence/{c.id}.pdf",
+                "refund": (
+                    {
+                        "id": refund.id,
+                        "refund_id": refund.refund_id,
+                        "paytm_order_id": refund.paytm_order_id,
+                        "refund_month": refund.refund_month,
+                        "amount_paise": refund.amount_paise,
+                        "status": refund.status,
+                        "label": refund.mode_label,
+                    }
+                    if refund is not None
+                    else None
+                ),
             }
         )
 

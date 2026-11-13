@@ -14,11 +14,11 @@ from typing import Any
 from sqlalchemy import func, select
 
 from app.agents.graph import ClaimGraphRunner
-from app.agents.nodes import load_street_histories
+from app.agents.nodes import load_street_histories, run_batch_payback
 from app.config import API_ROOT
 from app.db import DEFAULT_STREET_ID
 from app.detector.baseline import compute_baseline_paise
-from app.models import IST, Ask, Detection, PaymentHourly, Shop, now_ist, to_ist
+from app.models import IST, Ask, Detection, PaymentHourly, Refund, Shop, now_ist, to_ist
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,7 @@ class ScenarioRunner:
     shop_statuses: dict[str, str] = field(default_factory=dict)
     _active_task: asyncio.Task[None] | None = None
     _persona_tasks: list[asyncio.Task[None]] = field(default_factory=list)
+    _payback_tasks: dict[str, asyncio.Task[list[dict[str, Any]]]] = field(default_factory=dict)
 
     def _bus(self) -> Any:
         return self.graph_runner.runtime.bus
@@ -77,7 +78,7 @@ class ScenarioRunner:
 
     async def cancel_background(self) -> None:
         """Cancel any active replay or simulated persona tasks and wait for clean exit."""
-        tasks: list[asyncio.Task[None]] = []
+        tasks: list[asyncio.Task[Any]] = []
         if self._active_task is not None and not self._active_task.done():
             self._active_task.cancel()
             tasks.append(self._active_task)
@@ -85,11 +86,40 @@ class ScenarioRunner:
             if not task.done():
                 task.cancel()
                 tasks.append(task)
+        for p_task in self._payback_tasks.values():
+            if not p_task.done():
+                p_task.cancel()
+                tasks.append(p_task)
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
         self._active_task = None
         self._persona_tasks.clear()
+        self._payback_tasks.clear()
         self.running = False
+
+    def start_batch_payback(self, batch_id: str) -> asyncio.Task[list[dict[str, Any]]]:
+        """Start background payback task for an approved batch, returning immediately."""
+        existing = self._payback_tasks.get(batch_id)
+        if existing is not None and not existing.done():
+            return existing
+        task = asyncio.create_task(run_batch_payback(self.graph_runner.runtime, batch_id))
+        self._payback_tasks[batch_id] = task
+        return task
+
+    async def wait_for_payback(self, batch_id: str | None = None) -> list[dict[str, Any]]:
+        """Await completion of active payback task(s) (used in tests and synchronous checks)."""
+        if batch_id is not None:
+            task = self._payback_tasks.get(batch_id)
+            if task is None:
+                return []
+            return await task
+        if not self._payback_tasks:
+            return []
+        results = await asyncio.gather(*self._payback_tasks.values())
+        merged: list[dict[str, Any]] = []
+        for group in results:
+            merged.extend(group)
+        return merged
 
     async def reset(self) -> dict[str, int]:
         """Cancel active runs, clear detections/asks/claims, and re-seed from CSV."""
@@ -397,6 +427,9 @@ class ScenarioRunner:
             claims_by_shop: dict[str, Claim] = {}
             for c in sess.scalars(select(Claim).order_by(Claim.created_at.desc())):
                 claims_by_shop.setdefault(c.shop_id, c)
+            refunds_by_claim: dict[str, Refund] = {}
+            for r in sess.scalars(select(Refund).order_by(Refund.created_at.desc())):
+                refunds_by_claim.setdefault(r.claim_id, r)
 
         snap = self.snapshot()
         shop_items: list[dict[str, Any]] = []
@@ -406,6 +439,7 @@ class ScenarioRunner:
             det = detections_by_shop.get(s.id)
             ask_obj = asks_by_shop.get(s.id)
             claim_obj = claims_by_shop.get(s.id)
+            refund_obj = refunds_by_claim.get(claim_obj.id) if claim_obj is not None else None
 
             status = self.shop_statuses.get(s.id, "trading")
             if det is not None:
@@ -469,12 +503,24 @@ class ScenarioRunner:
                         {
                             "id": claim_obj.id,
                             "status": claim_obj.status,
+                            "batch_id": claim_obj.batch_id,
                             "consent_at": (
                                 claim_obj.consent_at.isoformat()
                                 if claim_obj.consent_at is not None
                                 else None
                             ),
                             "evidence_url": f"/api/evidence/{claim_obj.id}.pdf",
+                            "refund": (
+                                {
+                                    "id": refund_obj.id,
+                                    "refund_id": refund_obj.refund_id,
+                                    "amount_paise": refund_obj.amount_paise,
+                                    "status": refund_obj.status,
+                                    "label": refund_obj.mode_label,
+                                }
+                                if refund_obj is not None
+                                else None
+                            ),
                         }
                         if claim_obj is not None
                         else None
