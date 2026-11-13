@@ -286,37 +286,21 @@ class ScenarioRunner:
                         )
                     )
 
-        # Trigger automated simulated personas (Selvi stays manual-tap only).
+        # Trigger automated simulated personas sequentially so SQLite and MemorySaver never contend.
         persona_coros: list[tuple[float, str, str, str]] = []
-        consent_idx = 0
-        voice_idx = 0
-        base_delay = 0.0 if speed <= 0 else min(2.5, max(0.3, 120.0 / speed))
+        step_pause = 0.0 if (speed <= 0 or run_personas_inline) else min(0.25, max(0.05, 9.0 / speed))
 
         for ask_id, shop_id, ask_kind in pending_asks:
             if shop_id == SELVI_SHOP_ID and ask_kind == "consent":
                 # Selvi's consent must come only from a real merchant tap.
                 continue
             if ask_kind == "consent":
-                delay = 0.0 if speed <= 0 else (base_delay + consent_idx * 0.25)
-                consent_idx += 1
-                persona_coros.append((delay, ask_id, shop_id, "consent"))
+                persona_coros.append((step_pause, ask_id, shop_id, "consent"))
             elif ask_kind == "voice" and shop_id in AUTO_VOICE_PERSONAS:
-                delay = 0.0 if speed <= 0 else (base_delay + 0.5 + voice_idx * 0.35)
-                voice_idx += 1
-                persona_coros.append((delay, ask_id, shop_id, "voice"))
+                persona_coros.append((step_pause, ask_id, shop_id, "voice"))
 
-        if run_personas_inline:
-            for _, ask_id, shop_id, kind in persona_coros:
-                await self._run_persona_action(0.0, ask_id, shop_id, kind)
-        else:
-            for delay, ask_id, shop_id, kind in persona_coros:
-                task = asyncio.create_task(
-                    self._run_persona_action(delay, ask_id, shop_id, kind),
-                    name=f"persona-{shop_id}-{kind}",
-                )
-                self._persona_tasks.append(task)
-            if self._persona_tasks:
-                await asyncio.gather(*self._persona_tasks, return_exceptions=True)
+        for delay, ask_id, shop_id, kind in persona_coros:
+            await self._run_persona_action(delay, ask_id, shop_id, kind)
 
         return {
             "shops_evaluated": len(shop_ids),

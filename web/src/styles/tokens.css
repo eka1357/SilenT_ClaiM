@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+:root {
+  /* Console (dark, wet-asphalt night) */
+  --ink: #10161D;
+  --ink-2: #1A222C;
+  --ink-3: #232D39;
+  --line-dark: #2A3540;
+
+  /* Paper (merchant, adjuster, evidence, receipt) */
+  --paper: #F6F2EA;
+  --card: #FFFDF8;
+  --line: #D9D0BE;
+
+  /* Type */
+  --text-dark-1: #F6F2EA;
+  --text-dark-2: #B9C4CC;
+  --text-dark-3: #8A97A3;
+  --text-1: #10161D;
+  --text-2: #3F4853;
+  --text-3: #5E6772;
+
+  /* Brand & action (Chennai marigold) */
+  --marigold: #F0A23B;
+  --rust: #A54A06;
+
+  /* State (paired for dark / paper) */
+  --live: #5DB8C6;
+  --live-paper: #0F6E7C;
+  --ok: #7BC99A;
+  --ok-paper: #2F6B45;
+  --danger: #F08A73;
+  --danger-paper: #B42318;
+
+  /* Fonts */
+  --font-sans: "Anek Tamil", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--line-dark);
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--ink);
+    color: var(--text-dark-1);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 22px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--marigold);
+    outline-offset: 2px;
+  }
+}
+
+.font-sign {
+  font-family: var(--font-sans);
+  font-stretch: 75%;
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 32px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.font-sign-sm {
+  font-family: var(--font-sans);
+  font-stretch: 75%;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.font-heading {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.font-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.font-small {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.font-tamil {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 17px;
+  line-height: 27px;
+}
+
+.font-figures {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-figures-sm {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
