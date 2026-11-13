@@ -1,10 +1,32 @@
-"""External service integrations (Open-Meteo, Sarvam AI, Gemini LLM, Replay)."""
+"""External service integrations (Open-Meteo, Sarvam AI, LLM, Paytm, Replay)."""
 
 from app.integrations.llm import (
     CauseLabel,
     ClassificationPayload,
     ClassificationResult,
     classify_reply,
+)
+from app.integrations.paytm import (
+    ALLOWED_PAYTM_STAGING_HOSTS,
+    PAYTM_GW_STAGE_HOST,
+    PAYTM_PRIMARY_HOST,
+    PENDING_SIMULATED_LABEL,
+    PaytmCallResult,
+    PaytmClient,
+    PaytmConfigError,
+    PaytmProbeEntry,
+    PaytmSignedRequest,
+    PaytmUnavailableError,
+    build_initiate_transaction_request,
+    build_refund_id,
+    build_refund_request,
+    build_refund_status_request,
+    build_transaction_status_request,
+    probe_staging_endpoints,
+    redact_paytm_payload,
+    validate_paytm_config,
+    validate_paytm_host,
+    verify_paytm_signature,
 )
 from app.integrations.replay import IntegrationMode
 from app.integrations.sarvam import (
@@ -24,20 +46,40 @@ from app.integrations.weather import (
 )
 
 __all__ = [
+    "ALLOWED_PAYTM_STAGING_HOSTS",
     "DEFAULT_KEYTERMS",
+    "PAYTM_GW_STAGE_HOST",
+    "PAYTM_PRIMARY_HOST",
+    "PENDING_SIMULATED_LABEL",
     "CauseLabel",
     "ClassificationPayload",
     "ClassificationResult",
     "IntegrationMode",
+    "PaytmCallResult",
+    "PaytmClient",
+    "PaytmConfigError",
+    "PaytmProbeEntry",
+    "PaytmSignedRequest",
+    "PaytmUnavailableError",
     "STTResult",
     "TTSResult",
     "WeatherDayResult",
     "WeatherRangeResult",
     "WeatherUnavailableError",
+    "build_initiate_transaction_request",
+    "build_refund_id",
+    "build_refund_request",
+    "build_refund_status_request",
+    "build_transaction_status_request",
     "classify_reply",
     "contains_tamil_script",
     "fetch_daily_rain_range",
     "get_daily_rain_mm",
+    "probe_staging_endpoints",
+    "redact_paytm_payload",
     "synthesize_tamil",
     "transcribe_tamil",
+    "validate_paytm_config",
+    "validate_paytm_host",
+    "verify_paytm_signature",
 ]

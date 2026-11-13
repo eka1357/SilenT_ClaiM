@@ -123,3 +123,26 @@ def load_llm_fixture(
     if not matches:
         return None
     return json.loads(matches[0].read_text(encoding="utf-8"))
+
+
+def load_paytm_fixture(
+    operation: str,
+    *,
+    order_id: str,
+    refund_id: str | None = None,
+    fixtures_dir: Path = FIXTURES_DIR,
+) -> dict[str, Any] | None:
+    """Load a recorded redacted Paytm staging JSON response matching operation/order/refund."""
+    if not fixtures_dir.exists():
+        return None
+    key_parts = [operation, order_id.strip()]
+    if refund_id:
+        key_parts.append(refund_id.strip())
+    digest = short_text_hash(":".join(key_parts))
+    specific = sorted(fixtures_dir.glob(f"paytm_{operation}_{digest}.json"))
+    if specific:
+        return json.loads(specific[0].read_text(encoding="utf-8"))
+    generic = sorted(fixtures_dir.glob(f"paytm_{operation}_*.json"))
+    if generic:
+        return json.loads(generic[0].read_text(encoding="utf-8"))
+    return None

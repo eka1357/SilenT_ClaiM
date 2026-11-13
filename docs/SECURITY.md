@@ -6,7 +6,7 @@ All keys are in `api/.env`, loaded with pydantic-settings and never logged. `.en
 
 ## Money safety (the most important section)
 
-1. **Staging only.** On startup the API checks that `PAYTM_MODE` is `pending` or `staging`, and in `staging` that the host is `securestage.paytmpayments.com`. It refuses to start otherwise. In `pending` nothing is sent to Paytm and every Paytm result is labelled "Simulated: keys pending".
+1. **Staging only.** On startup the API checks that `PAYTM_MODE` is `pending` or `staging`, and that only Paytm's two documented staging hosts are permitted (`securestage.paytmpayments.com` and `securegw-stage.paytmpayments.in`), never a production host. It refuses to start otherwise. In `pending` nothing is sent to Paytm and every Paytm result is labelled "Simulated: keys pending".
 2. **Fixed amount.** The refund amount is the constant `PLAN_FEE_PAISE = 3500` in `detector/config.py`. No request body, LLM output or URL parameter can change it.
 3. **Caps.** One refund per shop per calendar month, checked in the database inside a transaction, with a unique constraint on `(shop_id, month)`.
 4. **Idempotency.** Refund ID = `SC-{claim_id}`, unique in `refunds`. A retry reuses it, so Paytm treats it as the same refund.
