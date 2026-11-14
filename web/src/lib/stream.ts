@@ -61,7 +61,8 @@ export interface ClaimFiledEvent {
 
 export interface BatchReadyEvent {
   batch_id: string;
-  count: number;
+  n: number;
+  count?: number;
 }
 
 export interface BatchApprovedEvent {

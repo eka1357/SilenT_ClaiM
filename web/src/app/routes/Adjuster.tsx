@@ -462,15 +462,41 @@ export function Adjuster() {
                   const ownerLabel = matchedClaim
                     ? `${matchedClaim.owner} (${matchedClaim.shop_name})`
                     : item.shop_id || item.claim_id;
+                  const statusLower = (item.status || "").toLowerCase();
+                  const isFailed =
+                    item.status === "refund_failed" ||
+                    statusLower.includes("fail");
+                  const isPending = item.status === "Pending at Paytm";
                   const isSim = item.label.toLowerCase().includes("simulated");
+                  const labelKind = isFailed
+                    ? "error"
+                    : isSim
+                      ? "simulated"
+                      : isPending
+                        ? "replay"
+                        : "filed";
                   return (
                     <div
                       key={item.refund_id}
-                      className="flex flex-col gap-1.5 rounded-[4px] border border-[var(--line)] bg-[var(--paper)] p-3 font-figures text-[14px] leading-[20px]"
+                      className={cn(
+                        "flex flex-col gap-1.5 rounded-[4px] border bg-[var(--paper)] p-3 font-figures text-[14px] leading-[20px]",
+                        isFailed
+                          ? "border-[var(--danger-paper)]"
+                          : "border-[var(--line)]"
+                      )}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-[var(--text-1)]">
-                          {formatRupeesFromPaise(item.amount_paise)} -&gt; {ownerLabel}
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            isFailed
+                              ? "text-[var(--danger-paper)]"
+                              : "text-[var(--text-1)]"
+                          )}
+                        >
+                          {isFailed
+                            ? `${formatRupeesFromPaise(item.amount_paise)} refund failed -> ${ownerLabel}`
+                            : `${formatRupeesFromPaise(item.amount_paise)} -> ${ownerLabel}`}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -478,7 +504,7 @@ export function Adjuster() {
                           {item.refund_id}
                         </span>
                         <StateLabel
-                          kind={isSim ? "simulated" : "filed"}
+                          kind={labelKind}
                           text={item.label}
                           surface="paper"
                         />

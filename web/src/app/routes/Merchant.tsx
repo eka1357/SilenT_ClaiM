@@ -42,6 +42,27 @@ function formatTrackerTime(
   return `${formatted} IST`;
 }
 
+function classifyRefundStatus(
+  status?: string | null
+): "succeeded" | "pending" | "failed" | "none" {
+  if (!status) return "none";
+  const norm = status.trim();
+  const upper = norm.toUpperCase();
+  if (upper === "TXN_SUCCESS" || upper === "SUCCESS" || upper === "SIMULATED") {
+    return "succeeded";
+  }
+  if (
+    norm === "Pending at Paytm" ||
+    upper === "PENDING" ||
+    upper === "TXN_PENDING" ||
+    upper === "INITIATED" ||
+    upper === "PROCESSING"
+  ) {
+    return "pending";
+  }
+  return "failed";
+}
+
 function buildSilentWavBlob(): Blob {
   const sampleRate = 16000;
   const numSamples = sampleRate;
@@ -455,10 +476,26 @@ export function Merchant() {
 
                 {/* Vertical claim tracker */}
                 {(() => {
+                  const refundState = classifyRefundStatus(
+                    selvi.claim.refund?.status
+                  );
+                  const refundSucceeded = refundState === "succeeded";
                   const isApproved =
                     selvi.claim.status === "approved" ||
+                    selvi.claim.status === "paid_sim" ||
                     Boolean(selvi.claim.approved_at) ||
                     hasRefund;
+                  const refundTimeText = refundSucceeded
+                    ? formatTrackerTime(
+                        selvi.claim.refund?.created_at ??
+                          selvi.claim.approved_at,
+                        "Refunded"
+                      )
+                    : refundState === "pending"
+                      ? "Pending at Paytm"
+                      : refundState === "failed"
+                        ? "Refund failed"
+                        : "Queued on approval";
                   const steps = [
                     {
                       key: "asked",
@@ -496,14 +533,8 @@ export function Merchant() {
                     {
                       key: "refund",
                       title: "₹35 back",
-                      done: Boolean(selvi.claim.refund),
-                      time: selvi.claim.refund
-                        ? formatTrackerTime(
-                            selvi.claim.refund.created_at ??
-                              selvi.claim.approved_at,
-                            "Refunded"
-                          )
-                        : "Queued on approval",
+                      done: refundSucceeded,
+                      time: refundTimeText,
                       simulated: false,
                     },
                     {
@@ -593,44 +624,61 @@ export function Merchant() {
 
                 {/* Screen 4: Money back receipt */}
                 {hasRefund && selvi.claim.refund ? (
-                  <div className="flex flex-col gap-2.5 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5">
-                    <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
-                      <div className="flex items-center gap-2">
-                        <ReceiptGlyph className="h-4 w-4 text-[var(--rust)]" />
-                        <span className="font-sign-sm text-[var(--text-1)]">
-                          ₹35 returned
-                        </span>
-                      </div>
-                      <StateLabel
-                        kind={
-                          selvi.claim.refund.label
-                            .toLowerCase()
-                            .includes("simulated")
-                            ? "simulated"
-                            : "live"
-                        }
-                        text={selvi.claim.refund.label}
-                        surface="paper"
-                      />
-                    </div>
+                  (() => {
+                    const refundState = classifyRefundStatus(
+                      selvi.claim.refund.status
+                    );
+                    const headingText =
+                      refundState === "succeeded"
+                        ? "₹35 returned"
+                        : refundState === "pending"
+                          ? "₹35 refund pending"
+                          : "₹35 refund failed";
+                    const labelKind =
+                      refundState === "failed"
+                        ? "error"
+                        : selvi.claim.refund.label
+                              .toLowerCase()
+                              .includes("simulated")
+                          ? "simulated"
+                          : refundState === "pending"
+                            ? "replay"
+                            : "live";
+                    return (
+                      <div className="flex flex-col gap-2.5 rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3.5">
+                        <div className="flex items-center justify-between border-b border-[var(--line)] pb-2">
+                          <div className="flex items-center gap-2">
+                            <ReceiptGlyph className="h-4 w-4 text-[var(--rust)]" />
+                            <span className="font-sign-sm text-[var(--text-1)]">
+                              {headingText}
+                            </span>
+                          </div>
+                          <StateLabel
+                            kind={labelKind}
+                            text={selvi.claim.refund.label}
+                            surface="paper"
+                          />
+                        </div>
 
-                    <div className="flex flex-col gap-1.5">
-                      <ReceiptLine
-                        label="Plan fee refunded"
-                        value={formatRupeesFromPaise(
-                          selvi.claim.refund.amount_paise
-                        )}
-                      />
-                      <ReceiptLine
-                        label="Refund ID"
-                        value={selvi.claim.refund.refund_id}
-                      />
-                      <ReceiptLine
-                        label="Status"
-                        value={selvi.claim.refund.status}
-                      />
-                    </div>
-                  </div>
+                        <div className="flex flex-col gap-1.5">
+                          <ReceiptLine
+                            label="Plan fee refunded"
+                            value={formatRupeesFromPaise(
+                              selvi.claim.refund.amount_paise
+                            )}
+                          />
+                          <ReceiptLine
+                            label="Refund ID"
+                            value={selvi.claim.refund.refund_id}
+                          />
+                          <ReceiptLine
+                            label="Status"
+                            value={selvi.claim.refund.status}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()
                 ) : (
                   <div className="rounded-[6px] border border-[var(--line)] bg-[var(--card)] p-3 text-[14px] leading-[20px] text-[var(--text-2)]">
                     Your evidence pack is in the adjuster batch. As soon as the adjuster approves the batch, this month&apos;s ₹35 plan fee is refunded automatically.

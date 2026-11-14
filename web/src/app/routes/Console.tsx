@@ -328,7 +328,7 @@ export function Console() {
       },
       onBatchReady: (evt) => {
         setBatchId(evt.batch_id);
-        setBatchCount(evt.count);
+        setBatchCount(evt.n ?? evt.count ?? 0);
         setBatchStatus("pending");
         void refreshSnapshots();
       },
