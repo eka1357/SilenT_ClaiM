@@ -88,7 +88,7 @@ silent-claim/
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/scenario/reset` | Reload seed data, clear detections, claims and refunds (refunds already made on staging stay logged) |
+| `POST` | `/api/scenario/reset` | Reload seed data, clear detections, claims and refunds (refunds sent to Paytm staging are archived to `api/runs/live_refunds.jsonl`) |
 | `POST` | `/api/scenario/run` | Body `{ "day": "2026-10-21", "speed": 60 }`. Replays the day; 1 simulated hour = 1 second at speed 60 |
 | `GET` | `/api/street/{id}` | Shops with current status, today's hourly series and baseline |
 | `GET` | `/api/claims` | Claims with status and evidence links |

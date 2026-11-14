@@ -56,6 +56,7 @@ def build_container(
         data_dir=data_dir,
         weather_lat=cfg.weather_lat,
         weather_lon=cfg.weather_lon,
+        live_refunds_archive_path=runs_dir / "live_refunds.jsonl",
     )
     bus = EventBus()
     health = IntegrationHealthTracker(bus=bus, settings_getter=settings_getter)

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import csv
+import json
+import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Engine, create_engine, delete, event, func, insert, select, update
+from sqlalchemy import Engine, create_engine, delete, event, func, insert, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import API_ROOT, Settings, get_settings, is_offline
@@ -24,10 +26,15 @@ from app.models import (
     Refund,
     Shop,
     Street,
+    now_ist,
     to_ist,
 )
 
+logger = logging.getLogger(__name__)
+
 DATA_DIR: Path = API_ROOT / "data"
+DEFAULT_LIVE_REFUNDS_ARCHIVE: Path = API_ROOT / "runs" / "live_refunds.jsonl"
+STAGING_REFUND_MODE_LABELS: frozenset[str] = frozenset({"Live", "Pending at Paytm"})
 DEFAULT_STREET_ID: str = "panagal_park_road"
 DEFAULT_STREET_NAME: str = "Panagal Park Road (simulated)"
 
@@ -74,11 +81,13 @@ class DatabaseManager:
         data_dir: Path = DATA_DIR,
         weather_lat: float = 13.04,
         weather_lon: float = 80.25,
+        live_refunds_archive_path: Path = DEFAULT_LIVE_REFUNDS_ARCHIVE,
     ) -> None:
         self.database_url = database_url
         self.data_dir = data_dir
         self.weather_lat = weather_lat
         self.weather_lon = weather_lon
+        self.live_refunds_archive_path = live_refunds_archive_path
         self.engine = create_db_engine(database_url)
         self.session_factory = sessionmaker(
             bind=self.engine,
@@ -103,9 +112,15 @@ class DatabaseManager:
         """Create tables if they do not exist yet."""
         Base.metadata.create_all(bind=self.engine)
 
-    def seed(self, *, reset: bool = False) -> dict[str, int]:
+    def seed(
+        self,
+        *,
+        reset: bool = False,
+        live_refunds_archive_path: Path | None = None,
+    ) -> dict[str, int]:
         """Ensure seed data from shops.csv and street.csv is present; optionally reset state."""
         self.init_schema()
+        archive_target = live_refunds_archive_path or self.live_refunds_archive_path
         with self.session() as sess:
             return seed_database(
                 sess,
@@ -113,6 +128,7 @@ class DatabaseManager:
                 weather_lat=self.weather_lat,
                 weather_lon=self.weather_lon,
                 reset=reset,
+                live_refunds_archive_path=archive_target,
             )
 
     def dispose(self) -> None:
@@ -160,6 +176,48 @@ def _load_street_csv(street_csv: Path) -> list[dict[str, Any]]:
     return rows
 
 
+def _archive_staging_refunds(session: Session, archive_path: Path) -> int:
+    """Append refunds sent to Paytm staging to archive_path as JSONL (never writing raw_response)."""
+    stmt = (
+        select(Refund)
+        .where(Refund.mode_label.in_(STAGING_REFUND_MODE_LABELS))
+        .order_by(Refund.created_at, Refund.id)
+    )
+    rows = list(session.scalars(stmt))
+    if not rows:
+        return 0
+
+    archived_at_iso = now_ist().isoformat()
+    lines = [
+        json.dumps(
+            {
+                "refund_id": r.refund_id,
+                "paytm_order_id": r.paytm_order_id,
+                "shop_id": r.shop_id,
+                "refund_month": r.refund_month,
+                "amount_paise": r.amount_paise,
+                "status": r.status,
+                "mode_label": r.mode_label,
+                "archived_at": archived_at_iso,
+            },
+            ensure_ascii=False,
+        )
+        for r in rows
+    ]
+    try:
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        with archive_path.open("a", encoding="utf-8") as handle:
+            for line in lines:
+                handle.write(line + "\n")
+    except Exception:
+        logger.warning(
+            "Failed to archive staging refunds to %s; continuing reset",
+            archive_path,
+            exc_info=True,
+        )
+    return len(rows)
+
+
 def seed_database(
     session: Session,
     *,
@@ -167,13 +225,12 @@ def seed_database(
     weather_lat: float = 13.04,
     weather_lon: float = 80.25,
     reset: bool = False,
+    live_refunds_archive_path: Path = DEFAULT_LIVE_REFUNDS_ARCHIVE,
 ) -> dict[str, int]:
     """Populate streets, shops, and payments_hourly from CSV; clear run artifacts when resetting."""
     if reset:
-        # Preserve any live staging refunds per docs/ARCHITECTURE.md, clearing claim_id FK safely.
-        session.execute(update(Refund).where(Refund.mode_label == "Live").values(claim_id=None))
-        session.execute(delete(Refund).where(Refund.mode_label != "Live"))
-        session.execute(delete(Refund).where(Refund.mode_label.is_(None)))
+        _archive_staging_refunds(session, live_refunds_archive_path)
+        session.execute(delete(Refund))
         session.execute(delete(Ask))
         session.execute(delete(Claim))
         session.execute(delete(Batch))

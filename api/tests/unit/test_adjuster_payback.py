@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.agents.nodes import execute_claim_payback
 from app.config import Settings
+from app.db import DatabaseManager
 from app.detector.config import PLAN_FEE_PAISE, RULES_VERSION
 from app.integrations.paytm import PENDING_SIMULATED_LABEL, build_refund_id
 from app.main import create_app
@@ -698,3 +699,76 @@ async def test_decline_consent_logs_and_forms_batch_without_shop(
         assert selvi_claim is None
         audit_actions = [a.action for a in sess.scalars(select(AuditLog))]
         assert "consent declined" in audit_actions
+
+
+def test_reset_archives_staging_refunds_and_clears_table_for_repeat_live_runs(
+    tmp_path: Path,
+) -> None:
+    """D28: seed(reset=True) archives Live/Pending staging refunds to JSONL and clears refunds so repeat runs are not capped."""
+    db_file = tmp_path / "reset_archive.db"
+    archive_file = tmp_path / "runs" / "live_refunds.jsonl"
+    db = DatabaseManager(
+        f"sqlite:///{db_file.as_posix()}",
+        live_refunds_archive_path=archive_file,
+    )
+    try:
+        db.seed(reset=False)
+
+        with db.session() as sess:
+            sess.add(
+                Refund(
+                    id="ref_live_1",
+                    claim_id=None,
+                    shop_id="shop_01",
+                    refund_month="2026-10",
+                    paytm_order_id="ORD-STG-SHOP-01",
+                    refund_id="SC-clm_shop_01_20261021",
+                    amount_paise=PLAN_FEE_PAISE,
+                    status="TXN_SUCCESS",
+                    mode_label="Live",
+                    raw_response={"secret_detail": "must_not_be_archived"},
+                )
+            )
+
+        db.seed(reset=True, live_refunds_archive_path=archive_file)
+
+        with db.session() as sess:
+            remaining = list(sess.scalars(select(Refund)))
+            assert remaining == []
+
+        assert archive_file.is_file()
+        lines = [
+            line for line in archive_file.read_text(encoding="utf-8").splitlines() if line.strip()
+        ]
+        assert len(lines) == 1
+        archived = json.loads(lines[0])
+        assert archived["refund_id"] == "SC-clm_shop_01_20261021"
+        assert archived["paytm_order_id"] == "ORD-STG-SHOP-01"
+        assert archived["shop_id"] == "shop_01"
+        assert archived["refund_month"] == "2026-10"
+        assert archived["amount_paise"] == PLAN_FEE_PAISE
+        assert archived["status"] == "TXN_SUCCESS"
+        assert archived["mode_label"] == "Live"
+        assert "+05:30" in archived["archived_at"]
+        assert "raw_response" not in archived
+        assert "must_not_be_archived" not in lines[0]
+
+        # A new refund for shop_01 / 2026-10 inserts cleanly without IntegrityError
+        with db.session() as sess:
+            sess.add(
+                Refund(
+                    id="ref_live_2",
+                    claim_id=None,
+                    shop_id="shop_01",
+                    refund_month="2026-10",
+                    paytm_order_id="ORD-STG-SHOP-01-RUN2",
+                    refund_id="SC-clm_shop_01_20261021_run2",
+                    amount_paise=PLAN_FEE_PAISE,
+                    status="TXN_SUCCESS",
+                    mode_label="Live",
+                    raw_response={},
+                )
+            )
+            sess.flush()
+    finally:
+        db.dispose()
