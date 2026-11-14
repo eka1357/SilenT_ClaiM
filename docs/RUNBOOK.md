@@ -2,7 +2,18 @@
 
 Repo root: `C:\Projects\Silent_Claim`. Paytm staging keys only, never production.
 
-## 0. Tonight
+## Finals day at a glance (solo)
+
+| Time | Do |
+|---|---|
+| 08:00 to 09:00 | Check in. Plug in, start the hotspot, then §1 and §2 (the laptop's address may change). From here you can demo in simulated mode, keys or not |
+| When the keys arrive | §3, pay five orders (§4), §5, then §6 with a fresh recording, then §8. About 40 minutes. Skip §7 if time is short |
+| 09:30 to 12:00 | Rehearse at your table. No code changes unless a rehearsal finds a demo-breaker, and then only before 11:00 |
+| 12:00 to 16:00 | Mentor rounds and shortlisting decide the Top 10. Every visit is the demo: after each one, do §8 again |
+| 16:30 to 18:30 | Top 10 jury round: §8 again, then the demo |
+| No keys by 12:00 | Demo in simulated mode with the fallback line in DEMO_SCRIPT.md. Or get your own test keys from the Paytm dashboard (Developer Settings > API Keys > Test API Details) |
+
+## 0. Before the event (done Saturday)
 
 1. **Empty `DATABASE_URL` in `api/.env`.** The line must read `DATABASE_URL=` with nothing after it. With `DEMO_OFFLINE=0` the API connects to this URL, and the template's placeholder Postgres host makes it exit at startup. Empty means SQLite in both modes.
 2. **Install once, tonight only:** `uv sync` in `api` and `pnpm i` in `web`. No installs at the venue.
@@ -10,6 +21,7 @@ Repo root: `C:\Projects\Silent_Claim`. Paytm staging keys only, never production
 4. From the repo root: `powershell -ExecutionPolicy Bypass -File scripts\demo_check.ps1` gives 9/9 PASS.
 5. **Windows:** pause updates for a week (Settings > Windows Update), set sleep to Never when plugged in, and check that Win+Alt+R (Xbox Game Bar) records a browser window.
 6. Copy `web\test-results\demo-backup.webm` to the phone. Charge the laptop, the phone and a power bank.
+7. Record a narrated backup video in simulated mode, the same way as §6 step 3. Tomorrow's live recording replaces it if there's time.
 
 ## 1. Start the API and the web app
 
@@ -18,6 +30,7 @@ Window 1, API in live mode:
 ```powershell
 cd C:\Projects\Silent_Claim\api
 $env:DEMO_OFFLINE="0"
+Remove-Item Env:PAYTM_MODE -ErrorAction SilentlyContinue
 uv run uvicorn app.main:app --port 8000
 ```
 
@@ -28,10 +41,10 @@ cd C:\Projects\Silent_Claim\web
 pnpm dev
 ```
 
-- Set `$env:DEMO_OFFLINE` every time you start the API. It overrides `api/.env` and stays set in that window, so a window that once ran Replay stays in Replay until you set it back to `"0"`.
+- Use these exact lines every time you start the API. `$env:` settings override `api/.env` and stay set in that window, so the live lines also clear the Replay settings from §7.
 - No `--reload`: on Windows it can leave an orphan process holding port 8000.
 - No `--host 0.0.0.0`: the phone reaches the API through Vite's proxy, so the API stays on 127.0.0.1.
-- To restart: Ctrl+C in Window 1, then the same three lines.
+- To restart: Ctrl+C in Window 1, then the same four lines.
 - To clear the screens without running the flood, run this, then refresh `/console`, `/adjuster` and the phone:
 
 ```powershell
@@ -45,9 +58,9 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/api/scenario/reset
 3. If the phone can't load it, Windows Firewall is blocking Node on this network. Either set the hotspot to Private (Settings > Network & internet > Wi-Fi > the hotspot > Network profile type > Private), or allow Node.js on Private and Public (Windows Security > Firewall & network protection > Allow an app through firewall).
 4. Do this first thing in the morning. The phone tap is the one moment you can't fake.
 
-## 3. Paytm staging keys (finals morning)
+## 3. Paytm staging keys (at the event)
 
-When the organisers share them, put them in `api/.env`:
+When the organisers share them, put them in `api/.env`. Use the same keys all day: an order can only be refunded with the keys of the account that took the payment.
 
 ```ini
 PAYTM_MID=<STAGING_MID>
@@ -55,7 +68,7 @@ PAYTM_MERCHANT_KEY=<STAGING_MERCHANT_KEY>
 PAYTM_MODE=staging
 ```
 
-## 4. Probe, then pay four ₹35 orders
+## 4. Probe, then pay ₹35 orders
 
 Window 3:
 
@@ -64,7 +77,7 @@ cd C:\Projects\Silent_Claim\api
 uv run python scripts/paytm_spike.py --probe
 ```
 
-Then four times: create an order, pay it right away, and write its `orderId` on paper.
+Pay five right away and more at lunch. For each one, create the order, pay it right away, and write its `orderId` on a numbered list.
 
 ```powershell
 uv run python scripts/paytm_spike.py --create
@@ -75,56 +88,56 @@ Pay with Paytm's staging test credentials (test UPI `7777777777@paytm`, or the t
 
 | Order | Used for |
 |---|---|
-| A | Spike refund test and the Replay fixture (§5) |
-| B | Live rehearsal (§6) |
-| C | The judges' run (§8) |
-| D | Spare: a second round or a retry |
+| 1 | Spike refund test (§5) |
+| 2 | Live rehearsal and demo video (§6) |
+| 3 onwards | One per live demo: mentor visits, shortlisting, the jury, and spares |
 
-An order can be refunded only once, so every live run needs its own unused order.
+An order can be refunded only once, so every live run needs its own unused order. Cross each one off as you use it.
 
-## 5. Spike refund test and fixture (order A)
+## 5. Spike refund test (order 1)
 
 ```powershell
-uv run python scripts/paytm_spike.py --order-id <ORDER_A>
-Copy-Item runs\paytm_spike.json tests\fixtures\paytm_refund_staging.json -Force
+uv run python scripts/paytm_spike.py --order-id <ORDER_1>
 ```
 
-Skip `record_fixtures.py` on the day. The other fixtures already pass `demo_check`, and re-recording on a weak network can overwrite good ones.
+This proves the refund path on staging before the rehearsal and shows how fast Paytm answers. Don't copy its output into `tests/fixtures`, and skip `record_fixtures.py` on the day: Replay runs with Paytm in pending mode (§7), so it needs no Paytm fixture.
 
-## 6. Live rehearsal (order B)
+## 6. Live rehearsal and demo video (order 2)
 
-1. In `api/.env`: `PAYTM_DEMO_ORDER_ID=<ORDER_B>`, `PAYTM_MODE=staging`, `PAYBACK_ENABLED=1`.
+1. In `api/.env`: `PAYTM_DEMO_ORDER_ID=<ORDER_2>`, `PAYTM_MODE=staging`, `PAYBACK_ENABLED=1`.
 2. Restart the API in live mode (§1). It reads the order ID only at startup.
-3. Start recording (Win+Alt+R). `/console`: **Reset and run the flood**. Phone: tap **ஆம், பதிவு செய்யுங்கள்**. `/adjuster`: **Approve batch (7)**. Stop recording (Win+Alt+R).
-4. Check Selvi's line: ₹35, Live, refund ID `SC-clm_...`. The other six read "Simulated refund (no staging payment)".
-5. This recording is now the main backup video, because it shows a Live refund. `demo-backup.webm` is the second backup.
+3. Put `/console` and a narrow `/merchant` window side by side on the laptop. Start a screen recording with your mic on (Snipping Tool > Record > select the whole screen; Xbox Game Bar records only one window). Say the script as you go: **Reset and run the flood**, tap **ஆம், பதிவு செய்யுங்கள்** in the merchant window, then the batch card and **Approve batch (7)**. Stop recording.
+4. Check Selvi's line: ₹35, Live, refund ID `SC-clm_...`. The other six read "Simulated refund (no staging payment)". Note how many seconds the refund lines took to appear after **Approve batch**: the screens pause while Paytm answers.
+5. This recording is your demo video for submission and your main backup, because it shows a Live refund. `demo-backup.webm` is the second backup. Copy both to the phone.
 
 ## 7. Replay rehearsal
 
 ```powershell
+cd C:\Projects\Silent_Claim\api
 $env:DEMO_OFFLINE="1"
+$env:PAYTM_MODE="pending"
 uv run uvicorn app.main:app --port 8000
 ```
 
-The badges read Replay. Reset and run, tap, approve: all 7 refund lines print. This is the run you fall back to if the venue network dies.
+The badges read Replay. Reset and run, tap, approve: all 7 refund lines print as simulated. Paytm must be `pending` here: no Paytm fixture is recorded, so Replay with `staging` would show Selvi's refund as "Paytm staging unavailable". This is the run you fall back to if the venue network dies.
 
-## 8. Arm for the judges (order C)
+## 8. Arm for each live demo (next unused order)
 
-1. In `api/.env`: `PAYTM_DEMO_ORDER_ID=<ORDER_C>`.
-2. Restart in live mode: `$env:DEMO_OFFLINE="0"`, then uvicorn (§1).
+1. In `api/.env`: `PAYTM_DEMO_ORDER_ID=<next unused order>`.
+2. Restart with the live lines in §1. They also clear the Replay settings from §7.
 3. Clear the screens with the reset command in §1. From `demo-freeze-2`, reset moves the rehearsal's staging refund into `api/runs/live_refunds.jsonl`, so Selvi's monthly cap is clear. Without that fix, use the "Monthly cap reached" row in §10 now.
-4. If there's a second round, repeat this section with order D.
+4. Repeat this section before every live demo.
 
 ## 9. Fifteen minutes before the slot
 
 - [ ] `/console` idle on the trading street; badges read Live
-- [ ] Laptop: only two tabs, `/console` and `/adjuster`; zoom 100%; Do not disturb on; plugged in; other apps closed
+- [ ] Laptop: one tab on `/console` (its links open `/adjuster`); zoom 100%; Do not disturb on; plugged in; other apps closed
 - [ ] Projector connected, console readable from the back of the room
 - [ ] Phone: `/merchant` loaded as Selvi; Do Not Disturb on; auto-lock off; brightness and media volume up
 - [ ] Backup video open and paused, on the laptop and on the phone
-- [ ] Paper with orders C and D
+- [ ] The numbered order list, used ones crossed off
 - [ ] Kill switches known by heart: `DEMO_OFFLINE=1` replays everything; `PAYBACK_ENABLED=0` pauses refunds
-- [ ] Roles: one person talks and drives; the other holds the phone and handles failures
+- [ ] Solo: phone face up beside the laptop, backup video one click away
 
 ## 10. If this fails
 
@@ -135,7 +148,9 @@ The badges read Replay. Reset and run, tap, approve: all 7 refund lines print. T
 | Phone can't open `/merchant` | Same hotspot? VPN off? Firewall step in §2. Last resort: `/merchant` in a narrow laptop window |
 | Selvi reads "Monthly cap reached" | A rehearsal refund is still in the database. Stop the API, run `Remove-Item C:\Projects\Silent_Claim\api\silent_claim.db*`, set a fresh order in `api/.env`, and start the API again: it rebuilds the database from the seed. On stage, use the line in DEMO_SCRIPT.md |
 | Selvi reads "Pending at Paytm" | Fine: Paytm accepted the refund. Use the line in DEMO_SCRIPT.md |
+| Screens pause after **Approve batch** | Paytm is answering and the server waits for it. Use the filler line in DEMO_SCRIPT.md |
+| Someone taps No or the voice button on Selvi's phone | Use the line in DEMO_SCRIPT.md, then **Reset and run the flood** |
 | Refund fails or staging is down | Use the fallback line in DEMO_SCRIPT.md. For the next run, set `PAYTM_MODE=pending` |
 | Network drops | Keep going. Calls fall back to Replay after 4 s |
-| API crashes | Play the backup video. Meanwhile restart with `$env:DEMO_OFFLINE="1"`, then **Reset and run the flood** |
+| API crashes | Play the backup video. Meanwhile restart with the Replay lines in §7, then **Reset and run the flood** |
 | Browser crashes | Reopen `http://localhost:5173/console` and press **Reset and run the flood** |
