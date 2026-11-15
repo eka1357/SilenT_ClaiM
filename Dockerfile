@@ -2,7 +2,7 @@
 FROM node:22-slim AS web-builder
 WORKDIR /workspace/web
 
-COPY web/package.json web/pnpm-lock.yaml ./
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN npm install -g pnpm@12.18.0 \
     && pnpm install --no-frozen-lockfile
 
