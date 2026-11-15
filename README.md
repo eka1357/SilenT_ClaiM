@@ -4,6 +4,8 @@
 
 **Demo video:** https://www.youtube.com/watch?v=f-Xr62rBfBw
 
+**Try it online:** https://silent-claim-replay.onrender.com/console (Replay mode: recorded responses, no keys. On the free plan the first load can take about a minute.)
+
 A feature concept for Paytm for Business. When a merchant's Paytm payments stop and most of their street goes quiet on a day of heavy rain, an agent asks them one question in Tamil, takes one tap of consent, and files an evidence-backed income-protection claim for a human adjuster. Paytm also refunds that month's ₹35 plan fee the same day, as goodwill; the real money is the insurer's claim payout for the lost day.
 
 Built for the Paytm Build for India AI Hackathon, Chennai, Track 2: AI-Powered Financial Journeys.
