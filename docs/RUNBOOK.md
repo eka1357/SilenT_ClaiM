@@ -7,11 +7,10 @@ Repo root: `C:\Projects\Silent_Claim`. Paytm staging keys only, never production
 | Time | Do |
 |---|---|
 | 08:00 to 09:00 | Check in. Plug in, start the hotspot, then §1 and §2 (the laptop's address may change). From here you can demo in simulated mode, keys or not |
-| When the keys arrive | §3, pay five orders (§4), §5, then §6 with a fresh recording, then §8. About 40 minutes. Skip §7 if time is short |
+| Paytm (decided) | Simulated today: the test account returned error 239 and Paytm's team said to leave it. Keep `PAYTM_MODE=pending`, skip §3 to §6 and §8, and record the demo video now with the §6 step 3 setup |
 | 09:30 to 12:00 | Rehearse at your table. No code changes unless a rehearsal finds a demo-breaker, and then only before 11:00 |
-| 12:00 to 16:00 | Mentor rounds and shortlisting decide the Top 10. Every visit is the demo: after each one, do §8 again |
-| 16:30 to 18:30 | Top 10 jury round: §8 again, then the demo |
-| No keys by 12:00 | Demo in simulated mode with the fallback line in DEMO_SCRIPT.md. Or get your own test keys from the Paytm dashboard (Developer Settings > API Keys > Test API Details) |
+| 12:00 to 16:00 | Mentor rounds and shortlisting decide the Top 10. Every visit is the demo: after each one, reset (§1) |
+| 16:30 to 18:30 | Top 10 jury round: reset (§1), then the demo |
 
 ## 0. Before the event (done Saturday)
 
@@ -135,7 +134,7 @@ The badges read Replay. Reset and run, tap, approve: all 7 refund lines print as
 - [ ] Projector connected, console readable from the back of the room
 - [ ] Phone: `/merchant` loaded as Selvi; Do Not Disturb on; auto-lock off; brightness and media volume up
 - [ ] Backup video open and paused, on the laptop and on the phone
-- [ ] The numbered order list, used ones crossed off
+- [ ] `PAYTM_MODE=pending` in `api/.env`, and the Paytm badge reads Simulated
 - [ ] Kill switches known by heart: `DEMO_OFFLINE=1` replays everything; `PAYBACK_ENABLED=0` pauses refunds
 - [ ] Solo: phone face up beside the laptop, backup video one click away
 

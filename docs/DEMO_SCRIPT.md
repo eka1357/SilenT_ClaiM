@@ -1,5 +1,19 @@
 # DEMO_SCRIPT.md
 
+## Full pitch (about 2:30): story, demo, close
+
+**Story (0:00 to 0:30, cover slide).** "21 October. Over 10 cm of rain overnight in Chennai. Selvi sells flowers at Panagal Park in T. Nagar. That day, her Paytm QR took nothing. Paytm launched cover for days like this, from ₹35 a month. But to claim, she has to prove a lost day she has no paperwork for, and claims are where insurance breaks: nearly 70% of health and general insurance complaints are about claims."
+
+**Insight (0:30 to 0:40).** "Here's what only Paytm can see. When a flood shuts a street, every Soundbox on it goes silent at the same time. That silence is the proof."
+
+**Demo (0:40 to 2:00).** Run the table below from the 0:10 row ("Paytm already sees this. Watch the street.") to the 1:23 row ("...and it missed one closure."). Skip the 0:00 row, because you just told the story, and save the 1:30 line for the close.
+
+**Close (2:00 to 2:30, business model slide).** "It's a feature inside Paytm for Business, not a new app. Paytm gets a reason for merchants to buy cover and renew it, and 1.64 crore merchants already pay Paytm a subscription. Insurers get evidence on every claim, and one shop can't fake a silent street. AI talks to her in Tamil; fixed rules and a human move the money. When the Soundbox goes silent, that is the claim."
+
+**20 seconds, for a quick mentor visit.** "When a flood shuts a street, every Paytm Soundbox on it goes silent at once. Silent Claim turns that silence into a filed insurance claim: it checks the street and the rain, asks the merchant one question in Tamil, and with one tap sends the insurer the proof. No forms."
+
+## The demo (90 seconds)
+
 Laptop on the projector with one tab on `/console`; the links on screen take you to `/adjuster`. Phone on `/merchant` as Selvi. You're solo: keep the phone face up beside the laptop, pick it up at 0:49 and hold it up at 1:14. Target: 90 seconds. Follow the cues in the Do column, not the clock.
 
 | Time | Say | Do |
@@ -12,7 +26,7 @@ Laptop on the projector with one tab on `/console`; the links on screen take you
 | 0:49 | "Selvi gets one question, in Tamil." | Phone: play the prompt |
 | 0:57 | "She sees exactly what we share, and with whom. One tap to file, one tap to say no. No forms." | Point at the "What we share" line, then tap **ஆம், பதிவு செய்யுங்கள்** (Yes, file it), or hold the phone out and let a judge tap it. Never hand the phone over. "Claim filed" can take a few seconds; keep talking |
 | 1:05 | "The insurer gets an evidence pack: her baseline, the street, the rain and her consent. A human adjuster approves the batch." | In the console's receipt, click **Batch for 21 Oct: ready (7)**. On `/adjuster`, click Selvi's row (PDF preview, 3 s), then **Approve batch (7)** |
-| 1:14 | "And Paytm refunds her ₹35 plan fee right away: a real refund on Paytm's staging gateway. The other six are simulated and labelled. The real money is the insurer's claim, now filed with proof." | Stay on `/adjuster`. Selvi's line appears under **Plan-fee refunds** once Paytm answers: ₹35, Live, refund ID. Hold up the phone: her tracker shows it too |
+| 1:14 | "And Paytm refunds her ₹35 plan fee right away. The refund call is built and signed for Paytm's staging gateway; today it runs simulated, and it's labelled that way. The real money is the insurer's claim for her lost ₹3,201, now filed with proof." | Stay on `/adjuster`. Point at Selvi's line under **Plan-fee refunds**: ₹35, "Simulated: keys pending", refund ID. Hold up the phone: her tracker shows it too |
 | 1:23 | "On 60 held-out simulated shop-weeks with leaves, illness and QR switches, it filed 18 claims. 17 were right, and it missed one closure." | Look at the judges, not the screen |
 | 1:30 | "When the Soundbox goes silent, that is the claim." | Stop. Wait for questions |
 
@@ -59,7 +73,7 @@ Learn the first four by heart.
 
 **"Couldn't a shop fake a drop to get paid?"** Going quiet costs them a day's sales, and it still pays nothing unless most of the street goes quiet in real rain. A human adjuster approves every batch, and the only automatic money is a ₹35 fee refund, at most once a month.
 
-**"₹35 is tiny. Why does it matter?"** The ₹35 is Paytm's same-day goodwill. The real money is the insurer's claim payout, which she would otherwise have to prove with forms; we file it for her with one tap.
+**"₹35 is tiny. Why does it matter?"** The ₹35 is Paytm's same-day goodwill, not the claim. The real money is the insurer's claim for her lost day, ₹3,201 here: her policy sets the payout, and we file the claim for her with proof and one tap.
 
 **"Why not use weather alone, like parametric cover?"** Weather says it rained; payments say which shops actually lost money. Our 15 mm rain gate only confirms the rain, and the grid's 28 mm on 21 Oct was far below the 10 cm the city measured, so grid rainfall also understates a street-level flood.
 
@@ -71,7 +85,9 @@ Learn the first four by heart.
 
 **"Would Paytm share this data with insurers?"** It doesn't need to share raw transactions. Paytm already distributes the insurance, and it sends the insurer only the evidence pack, with the merchant's consent.
 
-**"What is real and what is simulated?"** Real: the rainfall data, the Tamil voice and transcription, the classifier, the rules, the evidence PDF, Selvi's tap and her Paytm staging refund. Simulated and labelled: the shops' payment history, the other six taps and refunds, Meena's and Kavya's voice replies, the insurer's intake and the claim payout.
+**"What is real and what is simulated?"** Real: the rainfall data, the Tamil voice and transcription, the classifier, the rules, the evidence PDF and Selvi's tap. Simulated and labelled: the shops' payment history, the other six taps, Meena's and Kavya's voice replies, all seven ₹35 refunds, the insurer's intake and the claim payout.
+
+**"Why isn't the refund live?"** Our Paytm staging test account returned a system error this morning, and Paytm's team at the venue advised us to move on. The refund client is built and checksum-signed for the staging API, and all four endpoints answered our probe, so going live is a credentials switch, not a rebuild.
 
 **"Where do the rules fail?"** Two places, both in our own eval. A shop that switches to another QR on the flood day itself looks like a closed shop, which is why every claim needs the merchant's consent and a human adjuster. A shop that keeps more than 30% of its sales during a flood isn't filed; in production it would get the same Tamil question.
 
