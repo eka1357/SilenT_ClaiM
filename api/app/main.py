@@ -8,9 +8,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from app.config import Settings, get_settings
+from app.config import API_ROOT, Settings, get_settings, is_serve_web_dist
 from app.container import RUNS_DIR, AppContainer, build_container
 from app.db import DATA_DIR
 from app.integrations.replay import FIXTURES_DIR
@@ -21,6 +22,8 @@ from app.routes.scenario import router as scenario_router
 from app.routes.shops import router as shops_router
 from app.routes.stream import router as stream_router
 from app.scenario import SAMPLES_DIR
+
+WEB_DIST_DIR: Path = API_ROOT.parent / "web" / "dist"
 
 
 def _parse_cors_origins(web_origin: str) -> list[str]:
@@ -36,6 +39,7 @@ def create_app(
     fixtures_dir: Path = FIXTURES_DIR,
     runs_dir: Path = RUNS_DIR,
     samples_dir: Path = SAMPLES_DIR,
+    web_dist_dir: Path = WEB_DIST_DIR,
 ) -> FastAPI:
     """Construct and configure the FastAPI application instance."""
     container: AppContainer = build_container(
@@ -95,6 +99,36 @@ def create_app(
     application.include_router(adjuster_router)
     application.include_router(lab_router)
     application.include_router(stream_router)
+
+    if is_serve_web_dist(cfg) and web_dist_dir.is_dir():
+        resolved_dist = web_dist_dir.resolve()
+        assets_dir = resolved_dist / "assets"
+        if assets_dir.is_dir():
+            application.mount(
+                "/assets",
+                StaticFiles(directory=str(assets_dir)),
+                name="web_assets",
+            )
+
+        @application.get("/{full_path:path}", include_in_schema=False)
+        async def _serve_spa(full_path: str) -> FileResponse:
+            if full_path == "api" or full_path.startswith("api/"):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Not Found",
+                )
+            if full_path:
+                candidate = (resolved_dist / full_path).resolve()
+                if candidate.is_relative_to(resolved_dist) and candidate.is_file():
+                    return FileResponse(candidate)
+            index_file = resolved_dist / "index.html"
+            if not index_file.is_file():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Web dist index.html not found",
+                )
+            return FileResponse(index_file)
+
     return application
 
 

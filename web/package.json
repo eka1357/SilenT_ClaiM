@@ -2,6 +2,7 @@
   "name": "silent-claim-web",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@12.18.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host --port 5173",

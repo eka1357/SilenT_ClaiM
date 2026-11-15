@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     weather_lon: float = 80.25
 
     web_origin: str = "http://localhost:5173"
+    serve_web_dist: bool = False
     request_timeout_s: float = 4.0
 
 
@@ -65,3 +66,12 @@ def is_offline(settings: Settings | None = None) -> bool:
         return env_override.strip().lower() in {"1", "true", "yes", "on"}
     cfg = settings or get_settings()
     return cfg.demo_offline
+
+
+def is_serve_web_dist(settings: Settings | None = None) -> bool:
+    """Check whether FastAPI should serve the built SPA from web/dist (SERVE_WEB_DIST=1)."""
+    env_override = os.getenv("SERVE_WEB_DIST")
+    if env_override is not None:
+        return env_override.strip().lower() in {"1", "true", "yes", "on"}
+    cfg = settings or get_settings()
+    return cfg.serve_web_dist

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: silent-claim-replay
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DEMO_MODE
+        value: "1"
+      - key: DEMO_OFFLINE
+        value: "1"
+      - key: PAYTM_MODE
+        value: "pending"
+      - key: PAYBACK_ENABLED
+        value: "1"
+      - key: DATABASE_URL
+        value: ""
+      - key: TZ
+        value: "Asia/Kolkata"
+      - key: SERVE_WEB_DIST
+        value: "1"

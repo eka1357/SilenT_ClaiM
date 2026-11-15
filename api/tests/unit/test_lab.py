@@ -163,3 +163,61 @@ def test_lab_decide_all_seven_presets_and_zero_side_effects(tmp_path: Path) -> N
             assert session.scalars(select(Ask)).all() == []
             assert session.scalars(select(Claim)).all() == []
             assert session.scalars(select(Refund)).all() == []
+
+
+def test_serve_web_dist_opt_in_and_spa_routing(tmp_path: Path) -> None:
+    fake_dist = tmp_path / "web_dist"
+    (fake_dist / "assets").mkdir(parents=True)
+    (fake_dist / "index.html").write_text(
+        "<!doctype html><div id='root'>Silent Claim SPA</div>",
+        encoding="utf-8",
+    )
+    (fake_dist / "assets" / "app.js").write_text(
+        "console.log('silent-claim');",
+        encoding="utf-8",
+    )
+
+    db_url = f"sqlite:///{(tmp_path / 'spa.db').as_posix()}"
+
+    # 1. With serve_web_dist=False (default), /console returns 404
+    default_settings = Settings(
+        PAYTM_MODE="pending",
+        DEMO_MODE=True,
+        DEMO_OFFLINE=True,
+        SERVE_WEB_DIST=False,
+        DATABASE_URL=db_url,
+    )
+    app_default = create_app(
+        settings=default_settings,
+        database_url=db_url,
+        runs_dir=tmp_path / "runs",
+        web_dist_dir=fake_dist,
+    )
+    with TestClient(app_default) as client_default:
+        assert client_default.get("/console").status_code == 404
+        assert client_default.get("/api/health").status_code == 200
+
+    # 2. With serve_web_dist=True, SPA routes serve index.html, /assets serves static files, and unknown /api/* returns 404
+    dist_settings = Settings(
+        PAYTM_MODE="pending",
+        DEMO_MODE=True,
+        DEMO_OFFLINE=True,
+        SERVE_WEB_DIST=True,
+        DATABASE_URL=db_url,
+    )
+    app_dist = create_app(
+        settings=dist_settings,
+        database_url=db_url,
+        runs_dir=tmp_path / "runs",
+        web_dist_dir=fake_dist,
+    )
+    with TestClient(app_dist) as client_dist:
+        for route in ("/", "/console", "/merchant", "/adjuster", "/lab", "/privacy"):
+            res = client_dist.get(route)
+            assert res.status_code == 200
+            assert "Silent Claim SPA" in res.text
+        asset_res = client_dist.get("/assets/app.js")
+        assert asset_res.status_code == 200
+        assert "silent-claim" in asset_res.text
+        assert client_dist.get("/api/health").status_code == 200
+        assert client_dist.get("/api/nonexistent").status_code == 404

@@ -52,3 +52,9 @@ Start with [AGENTS.md](AGENTS.md). Product, architecture, design, plan, tests, s
 ## Data
 
 All merchants and payments are synthetic. No real Paytm data is used. Sources for the figures in the pitch: Mathrubhumi (21 Oct 2026), WRI India (2024), Mint (June 2026), Paytm press release (3 July 2024), Paytm Q2 FY27 results as reported by YourStory.
+
+## Try it online
+
+- **Public Replay demo:** `<https://silent-claim-replay.onrender.com/console>` *(replace with your Render service URL after deploying `render.yaml`)*
+
+The online copy runs in Replay mode with recorded responses and no keys. The live version with Sarvam, Open-Meteo and Paytm staging runs locally and is shown in the demo video. The first load can take a minute.
