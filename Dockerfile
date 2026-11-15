@@ -3,8 +3,8 @@ FROM node:22-slim AS web-builder
 WORKDIR /workspace/web
 
 COPY web/package.json web/pnpm-lock.yaml ./
-RUN npm install -g "$(node -p 'require("./package.json").packageManager')" \
-    && pnpm install --frozen-lockfile
+RUN npm install -g pnpm@12.18.0 \
+    && pnpm install --no-frozen-lockfile
 
 COPY web/ ./
 RUN pnpm build
