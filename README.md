@@ -2,7 +2,9 @@
 
 **When the Soundbox goes silent, that is the claim.**
 
-A feature concept for Paytm for Business. When a merchant's Paytm payments stop and most of their street goes quiet on a day of heavy rain, an agent asks them one question in Tamil, takes one tap of consent, files an evidence-backed income-protection claim for a human adjuster, and refunds that month's plan fee at once on Paytm's staging gateway.
+**Demo video:** https://www.youtube.com/watch?v=f-Xr62rBfBw
+
+A feature concept for Paytm for Business. When a merchant's Paytm payments stop and most of their street goes quiet on a day of heavy rain, an agent asks them one question in Tamil, takes one tap of consent, and files an evidence-backed income-protection claim for a human adjuster. Paytm also refunds that month's ₹35 plan fee the same day, as goodwill; the real money is the insurer's claim payout for the lost day.
 
 Built for the Paytm Build for India AI Hackathon, Chennai, Track 2: AI-Powered Financial Journeys.
 
@@ -10,7 +12,9 @@ Built for the Paytm Build for India AI Hackathon, Chennai, Track 2: AI-Powered F
 
 | Real | Simulated (labelled in the UI) |
 |---|---|
-| Rainfall (Open-Meteo archive), the detection rules, Tamil voice (Sarvam), the reply classifier, the evidence PDF, the Paytm staging payment and refund | The 12 shops' payment history, the insurer's intake, the claim payout, the app shell |
+| Rainfall (Open-Meteo archive), the detection rules, Tamil voice (Sarvam), the reply classifier, the evidence PDF, Selvi's consent tap | The 12 shops' payment history, the other six consents, Meena's and Kavya's voice replies, the ₹35 plan-fee refunds, the insurer's intake, the claim payout, the app shell |
+
+The refund client is built and checksum-signed for Paytm's staging gateway, and all four endpoints answered our probe. On finals day our staging test account returned error 239, so the refunds ran simulated, and they are labelled that way.
 
 ## Run it
 
